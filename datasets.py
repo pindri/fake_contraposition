@@ -1,0 +1,72 @@
+import numpy as np
+import torch
+from torchvision import datasets, transforms
+from sklearn.model_selection import train_test_split
+from torch.utils.data import Dataset, TensorDataset, DataLoader, random_split
+from sklearn import datasets as sk_datasets
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+
+
+class ToTensor:
+    def __call__(self, sample):
+        return torch.tensor(sample, dtype=torch.float32)
+
+
+def get_loaders(dataset_name, batch_size=32, val_split=0.2, test_split=0.2, random_state=42, flatten=False):
+    if dataset_name.lower() == 'iris':
+        iris = sk_datasets.load_iris()
+        X, y = iris.data, iris.target
+        scaler = StandardScaler()
+        X = scaler.fit_transform(X)
+        X = torch.tensor(X, dtype=torch.float32)
+        y = torch.tensor(y, dtype=torch.long)
+
+        X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=test_split + val_split,
+                                                            random_state=random_state)
+        if val_split > 0.0:
+            X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp,
+                                                            test_size=test_split / (test_split + val_split),
+                                                            random_state=random_state)
+        else:
+            X_val = X_temp
+            X_test = X_temp
+            y_val = y_temp
+            y_test = y_temp
+
+        train_dataset = TensorDataset(X_train, y_train)
+        val_dataset = TensorDataset(X_val, y_val)
+        test_dataset = TensorDataset(X_test, y_test)
+
+    elif dataset_name.lower() == 'mnist':
+        transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
+        if flatten:
+            flatten_transform = transforms.Compose([
+                transforms.Lambda(lambda x: x.view(-1))  # Flatten.
+            ])
+            transform = transforms.Compose([transform, flatten_transform])
+        train_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+        test_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+        train_size = int((1 - val_split) * len(train_dataset))
+        val_size = len(train_dataset) - train_size
+        train_dataset, val_dataset = random_split(train_dataset, [train_size, val_size])
+
+    elif dataset_name.lower() == 'susy': # Ignores the test split, as there is a designated test set.
+        full_dataset = torch.tensor(np.load("./datasets/susy.npy"))
+        X, y = full_dataset[:4500000, 1:], full_dataset[:4500000, 0].long()
+        X_test, y_test = full_dataset[4500000:, 1:], full_dataset[4500000:, 0].long()
+        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=val_split,
+                                                          random_state=random_state)
+
+        train_dataset = TensorDataset(X_train, y_train)
+        val_dataset = TensorDataset(X_val, y_val)
+        test_dataset = TensorDataset(X_test, y_test)
+
+    else:
+        raise ValueError("Dataset not supported. Please choose 'iris' or 'mnist'.")
+
+    # Dataloaders.
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+    return train_loader, val_loader, test_loader
