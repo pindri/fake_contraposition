@@ -4,6 +4,7 @@ from mair.defenses import AT
 
 from datasets import get_loaders
 from models import FFNetwork
+from robustness_oracles.Quantitative_PDG import Quantitative_PGD
 
 train_loader, val_loader, test_loader = get_loaders('iris', val_split=0.0, batch_size=16)
 input_dim = 4
@@ -45,6 +46,13 @@ def evaluate_and_print(model, label, std, eps):
     print(f"Clean accuracy: {model.eval_accuracy(val_loader):.2f}")  # clean accuracy
     print(f"GN robustness: {model.eval_rob_accuracy_gn(val_loader, std=std):.2f}")  # gaussian noise accuracy
     print(f"FGSM robustness: {model.eval_rob_accuracy_fgsm(val_loader, eps=eps):.2f}")  # FGSM accuracy
+    print(
+        f"PGD robustness: {model.eval_rob_accuracy_pgd(val_loader, eps=0.5, alpha=0.01, steps=100):.2f}")  # FGSM accuracy
+    quant_pgd = Quantitative_PGD(model, eps=1, alpha=0.005, steps=200, random_start=False)
+    print(f"quantitative robustness:  {quant_pgd(val_loader)}")
+    print("second try")
+    quant_pgd = Quantitative_PGD(model, eps=1, alpha=0.005, steps=200, random_start=False)
+    print(f"quantitative robustness:  {quant_pgd(val_loader)}")
     print("\n")
 
 
