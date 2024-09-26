@@ -55,5 +55,9 @@ def evaluate_and_print(model, label, std, eps):
     print(f"quantitative robustness:  {quant_pgd(val_loader)}")
     print("\n")
 
+# TODO: ffnetwork class, with something something for temp scaling (OR, in a decorator), output with/without sfmax
+# TODO: wandb stuff
+# TODO: add cifar to datasets (+ make data dimension thing automatic)
+# TODO: marabou oracle
 
 evaluate_and_print(rmodel, "teacher", std=STD, eps=EPS)
