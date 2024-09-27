@@ -1,9 +1,11 @@
 import mair
+import torch
 from mair import Standard
 from mair.defenses import AT
 
 from datasets import get_loaders
 from models import FFNetwork
+from robustness_oracles.Quantitative_Marabou import verify_l_inf_ball, quantitative_Marabou
 from robustness_oracles.Quantitative_PDG import Quantitative_PGD
 
 train_loader, val_loader, test_loader = get_loaders('iris', val_split=0.0, batch_size=16)
@@ -54,6 +56,16 @@ def evaluate_and_print(model, label, std, eps):
     quant_pgd = Quantitative_PGD(model, eps=1, alpha=0.005, steps=200, random_start=False)
     print(f"quantitative robustness:  {quant_pgd(val_loader)}")
     print("\n")
+    robs = []
+    for (X, y) in val_loader:
+        # print(X)
+        robs.append(quantitative_Marabou(model, 10, 2, X))
+    print(torch.cat(robs, dim=0))
+    robs = []
+    # for (X, y) in val_loader:
+    #     # print(X)
+    #     robs.append(quantitative_Marabou(model, 10, 10, X))
+    # print(torch.cat(robs, dim=0))
 
 # TODO: ffnetwork class, with something something for temp scaling (OR, in a decorator), output with/without sfmax
 # TODO: wandb stuff
