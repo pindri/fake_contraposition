@@ -46,8 +46,8 @@ def verify_l_inf_ball(model, nnet_file, point, max_radius):
         upper_bound = point[i].item() + max_radius
         # print(input_vars[i])
         # print(network.getInputMinimum(input_vars[i]))
-        network.setLowerBound(input_vars[i], max(lower_bound, network.getInputMinimum(input_vars[i])))
-        network.setUpperBound(input_vars[i], min(upper_bound, network.getInputMaximum(input_vars[i])))
+        network.setLowerBound(input_vars[i], max(lower_bound, 0))#network.getInputMinimum(input_vars[i])))
+        network.setUpperBound(input_vars[i], min(upper_bound, 1))#network.getInputMaximum(input_vars[i])))
         # network.addInequality([input_vars[i]], [-1], -lower_bound)
 
     # Get the current class label from the network by feeding the input point

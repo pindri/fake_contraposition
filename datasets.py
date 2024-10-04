@@ -14,6 +14,8 @@ class ToTensor:
 
 def get_loaders(dataset_name, batch_size=32, val_split=0.2, test_split=0.2, random_state=42, flatten=False):
     if dataset_name.lower() == 'iris':
+        dim_input = 4
+        dim_output = 3
         iris = sk_datasets.load_iris()
         X, y = iris.data, iris.target
         scaler = StandardScaler()
@@ -38,6 +40,8 @@ def get_loaders(dataset_name, batch_size=32, val_split=0.2, test_split=0.2, rand
         test_dataset = TensorDataset(X_test, y_test)
 
     elif dataset_name.lower() == 'mnist':
+        dim_input = 784
+        dim_output = 10
         transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
         if flatten:
             flatten_transform = transforms.Compose([
@@ -51,6 +55,8 @@ def get_loaders(dataset_name, batch_size=32, val_split=0.2, test_split=0.2, rand
         train_dataset, val_dataset = random_split(train_dataset, [train_size, val_size])
 
     elif dataset_name.lower() == 'susy': # Ignores the test split, as there is a designated test set.
+        dim_input = 8 #?
+        dim_output = 2
         full_dataset = torch.tensor(np.load("./datasets/susy.npy"))
         X, y = full_dataset[:4500000, 1:], full_dataset[:4500000, 0].long()
         X_test, y_test = full_dataset[4500000:, 1:], full_dataset[4500000:, 0].long()
@@ -69,4 +75,4 @@ def get_loaders(dataset_name, batch_size=32, val_split=0.2, test_split=0.2, rand
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-    return train_loader, val_loader, test_loader
+    return dim_input, dim_output, train_loader, val_loader, test_loader

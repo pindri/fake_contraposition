@@ -10,7 +10,7 @@ def complexity(eps: float = 0.05, delta: float = 0.05) -> int:
     return n
 
 
-def union_bound_inequality(n: int, eps: float = 0.05, delta: float = 0.05) -> bool:
+def union_bound_simple_inequality(n: int, eps: float = 0.05, delta: float = 0.05) -> bool:
     """
     obtained via growth function for VC dim 2, upper-bounding by n^2, and using the union bound.
     """

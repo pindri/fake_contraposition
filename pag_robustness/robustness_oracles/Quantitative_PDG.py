@@ -34,6 +34,7 @@ class Quantitative_PGD:
     def __call__(self, data_loader):
         output_vectors = []
         for (X, y) in data_loader:
+            y = self.model(X.to(device=self.device)).argmax(dim=1)
             output_vectors.append(self.forward(X, y))
         return torch.cat(output_vectors, dim=0)
 
@@ -69,11 +70,16 @@ class Quantitative_PGD:
             adv_inputs = adv_inputs.detach() + self.alpha * grad.sign()
             delta = torch.clamp(adv_inputs - inputs, min=-self.eps, max=self.eps)
             # Originally clamped in [0, 1] (to obtain a sample in the data space), but we don't like that.
-            adv_inputs = torch.clamp(inputs + delta, min=-np.inf, max=np.inf).detach()
+            adv_inputs = torch.clamp(inputs + delta, min=0, max=1).detach()
 
             # for all indices in breakdown vector where: the value is self.steps and the model label is NOT the
             # original label, set the breakdown vector index to i print(f"break_steps {torch.where((break_vector ==
             # self.steps) & (self.model(adv_inputs).argmax(dim=1) != labels))[0]}")
-            break_vector[torch.where((break_vector == self.steps) & (self.model(adv_inputs).argmax(dim=1) != labels))[0]] = i
+            # print(self.model(adv_inputs).argmax(dim=1))
+            # print(self.model(inputs).argmax(dim=1))
+            # print(inputs)
+            # print(adv_inputs)
+            break_vector[torch.where((break_vector == self.steps) &
+                                     (self.model(adv_inputs).argmax(dim=1) != self.model(inputs).argmax(dim=1)))[0]] = i
 
         return break_vector

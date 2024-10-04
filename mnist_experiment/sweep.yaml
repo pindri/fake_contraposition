@@ -1,0 +1,26 @@
+method: grid
+parameters:
+  seed:
+    values: [69, 420, 666, 42]
+  lr:
+    values: [0.1,]
+  momentum:
+    values: [0.9]
+  n_epochs:
+    values: [1]
+  batch_size:
+    values: [256]
+  data_root:
+    values: ["mnist"]
+  optimization_function:
+    values: [AT,Standard]
+  EPS:
+    values: [0.1]
+  ALPHA:
+    values: [0.1]
+  STEPS:
+    values: [10]
+  STD:
+    values: [0.1]
+  layer_sizes:
+    values: [[50,10]]
