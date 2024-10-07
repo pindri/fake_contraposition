@@ -45,4 +45,9 @@ parameters:
   SAMPLING_GN_STD:
     values: [0.03125] # 8/256
 
+  MARABOU_MAX_RADIUS:
+    values: [100]
+  MARABOU_STEPS:
+    values: [6]
+
 

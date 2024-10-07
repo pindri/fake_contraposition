@@ -14,10 +14,11 @@ def train_and_store_networks(seed, path, robust):
     np.random.seed(seed)
     torch.random.manual_seed(seed)
 
-    dim_input, dim_output, train_loader, val_loader, test_loader = (
-        get_loaders('cifar10', val_split=0.2, batch_size=256, flatten=True))
+    dim_input, dim_output, train_loader, _, val_loader, test_loader = (
+        get_loaders('cifar10', val_split=0.2, batch_size=512, flatten=False))
 
-    normal_model = FFNetwork(dim_input, dim_output, layer_sizes=[50, 10])
+    # resnet_model = torch.hub.load('pytorch/vision:v0.10.0', 'wide_resnet50_2', pretrained=False)
+    normal_model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
 
     robust_model = mair.RobModel(normal_model, n_classes=dim_output)
 
@@ -32,7 +33,7 @@ def train_and_store_networks(seed, path, robust):
         trainer = Standard(robust_model)
     trainer.record_rob(train_loader, val_loader, eps=.5, alpha=.1,
                        steps=10, std=1)
-    trainer.setup(optimizer=f"SGD(lr={0.1}, momentum={0.9})",
+    trainer.setup(optimizer=f"SGD(lr={10**-4}, momentum={0.1})",
                   scheduler="Step(milestones=[100, 150], gamma=0.1)",
                   scheduler_type="Epoch",
                   minimizer=None,  # or "AWP(rho=5e-3)",
@@ -125,8 +126,7 @@ def scatter_with_density(preds, robs):
 
 
 if __name__ == "__main__":
-    model, val_loader, test_loader = train_and_store_networks()
-    model, val_loader, test_loader = obtain_cached_network()
+    model, val_loader, test_loader = train_and_store_networks(3,3,True)
     validation_sample = sample_from_dataloader(val_loader, 300000, std=8 / 255)
     preds = model(validation_sample)
 

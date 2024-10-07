@@ -53,12 +53,15 @@ class Quantitative_PGD:
             )
             adv_inputs = torch.clamp(adv_inputs, min=0, max=1).detach()
         break_vector = torch.ones(adv_inputs.shape[0]) * self.steps
+
+        idx = torch.Tensor(range(adv_inputs.shape[0])).int()
+        # print(idx)
         for i in range(self.steps):
             adv_inputs.requires_grad = True
             outputs = self.model(adv_inputs)
 
             # Calculate loss
-            cost = loss(outputs, labels)
+            cost = loss(outputs, labels[idx])
 
             # Update adversarial images
             grad = torch.autograd.grad(
@@ -66,9 +69,9 @@ class Quantitative_PGD:
             )[0]
 
             adv_inputs = adv_inputs.detach() + self.alpha * grad.sign()
-            delta = torch.clamp(adv_inputs - inputs, min=-self.eps, max=self.eps)
+            delta = torch.clamp(adv_inputs - inputs[idx], min=-self.eps, max=self.eps)
             # Originally clamped in [0, 1] (to obtain a sample in the data space), but we don't like that.
-            adv_inputs = torch.clamp(inputs + delta, min=0, max=1).detach()
+            adv_inputs = torch.clamp(inputs[idx] + delta, min=0, max=1).detach()
 
             # for all indices in breakdown vector where: the value is self.steps and the model label is NOT the
             # original label, set the breakdown vector index to i print(f"break_steps {torch.where((break_vector ==
@@ -77,7 +80,14 @@ class Quantitative_PGD:
             # print(self.model(inputs).argmax(dim=1))
             # print(inputs)
             # print(adv_inputs)
-            break_vector[torch.where((break_vector == self.steps) &
-                                     (self.model(adv_inputs).argmax(dim=1) != self.model(inputs).argmax(dim=1)))[0]] = i
 
+
+            print(i, len(inputs[idx]))
+            # robust indices
+            resistant_samples = self.model(adv_inputs).argmax(dim=1) == self.model(inputs[idx]).argmax(dim=1)
+            break_vector[idx[~resistant_samples]] = i
+            adv_inputs = adv_inputs[resistant_samples]
+            idx = idx[resistant_samples]
+            if len(idx) == 0:
+                break
         return break_vector
