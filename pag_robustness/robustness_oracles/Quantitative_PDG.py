@@ -46,7 +46,7 @@ class Quantitative_PGD:
         loss = nn.CrossEntropyLoss()
         adv_inputs = inputs.clone().detach()
 
-        if self.random_start:  # what does THIS do?
+        if self.random_start:
             # Starting at a uniformly random point
             adv_inputs = adv_inputs + torch.empty_like(adv_inputs).uniform_(
                 -self.eps, self.eps

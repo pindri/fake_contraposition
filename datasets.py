@@ -12,7 +12,8 @@ class ToTensor:
         return torch.tensor(sample, dtype=torch.float32)
 
 
-def get_loaders(dataset_name, batch_size=32, val_split=0.2, test_split=0.2, random_state=42, flatten=False):
+def get_loaders(dataset_name, batch_size=32, val_split=0.2, scaler_split=0.2, sampler_split=0.2, test_split=0.2,
+                random_state=42, flatten=False):
     if dataset_name.lower() == 'iris':
         dim_input = 4
         dim_output = 3
@@ -50,12 +51,20 @@ def get_loaders(dataset_name, batch_size=32, val_split=0.2, test_split=0.2, rand
             transform = transforms.Compose([transform, flatten_transform])
         train_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
         test_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
-        train_size = int((1 - val_split) * len(train_dataset))
-        val_size = len(train_dataset) - train_size
-        train_dataset, val_dataset = random_split(train_dataset, [train_size, val_size])
+        train_size = int((1 - scaler_split - sampler_split) * len(train_dataset))
+        sampler_split = int(sampler_split * len(train_dataset))
+        scaler_split = len(train_dataset) - train_size - sampler_split
+        train_dataset, scaler_dataset, sampler_dataset = random_split(train_dataset, [train_size, scaler_split, sampler_split])
+        # Dataloaders.
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        scaler_loader = DataLoader(scaler_dataset, batch_size=batch_size, shuffle=False)
+        sampler_loader = DataLoader(sampler_dataset, batch_size=batch_size, shuffle=False)
+        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-    elif dataset_name.lower() == 'susy': # Ignores the test split, as there is a designated test set.
-        dim_input = 8 #?
+        return dim_input, dim_output, train_loader, scaler_loader, sampler_loader, test_loader
+
+    elif dataset_name.lower() == 'susy':  # Ignores the test split, as there is a designated test set.
+        dim_input = 8  #?
         dim_output = 2
         full_dataset = torch.tensor(np.load("./datasets/susy.npy"))
         X, y = full_dataset[:4500000, 1:], full_dataset[:4500000, 0].long()
