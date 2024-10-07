@@ -63,6 +63,29 @@ def get_loaders(dataset_name, batch_size=32, val_split=0.2, scaler_split=0.2, sa
 
         return dim_input, dim_output, train_loader, scaler_loader, sampler_loader, test_loader
 
+    elif dataset_name.lower() == 'cifar10':
+        dim_input =
+        dim_output = 10
+        transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
+        if flatten:
+            flatten_transform = transforms.Compose([
+                transforms.Lambda(lambda x: x.view(-1))  # Flatten.
+            ])
+            transform = transforms.Compose([transform, flatten_transform])
+        train_dataset = datasets.CIFAR10(root='./data/cifar10', train=True, download=True, transform=transform)
+        test_dataset = datasets.CIFAR10(root='./data/cifar10', train=False, download=True, transform=transform)
+        train_size = int((1 - scaler_split - sampler_split) * len(train_dataset))
+        sampler_split = int(sampler_split * len(train_dataset))
+        scaler_split = len(train_dataset) - train_size - sampler_split
+        train_dataset, scaler_dataset, sampler_dataset = random_split(train_dataset, [train_size, scaler_split, sampler_split])
+        # Dataloaders.
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        scaler_loader = DataLoader(scaler_dataset, batch_size=batch_size, shuffle=False)
+        sampler_loader = DataLoader(sampler_dataset, batch_size=batch_size, shuffle=False)
+        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+        return dim_input, dim_output, train_loader, scaler_loader, sampler_loader, test_loader
+
     elif dataset_name.lower() == 'susy':  # Ignores the test split, as there is a designated test set.
         dim_input = 8  #?
         dim_output = 2

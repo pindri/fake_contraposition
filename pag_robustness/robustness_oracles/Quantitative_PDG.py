@@ -52,9 +52,7 @@ class Quantitative_PGD:
                 -self.eps, self.eps
             )
             adv_inputs = torch.clamp(adv_inputs, min=0, max=1).detach()
-
         break_vector = torch.ones(adv_inputs.shape[0]) * self.steps
-
         for i in range(self.steps):
             adv_inputs.requires_grad = True
             outputs = self.model(adv_inputs)

@@ -143,5 +143,5 @@ if __name__ == "__main__":
         sweep_configuration = yaml.safe_load(stream)
     #
     # wandb.run(entity="peter-blohm-tu-wien", project="pag_mnist_test-orphans", sweep=sweep_configuration)
-    sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_mnist_sampling", sweep=sweep_configuration)
-    wandb.agent(sweep_id, function=sampling)
+    sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_mnist_training", sweep=sweep_configuration)
+    wandb.agent(sweep_id, function=training)

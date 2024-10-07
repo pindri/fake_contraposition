@@ -11,7 +11,7 @@ parameters:
   momentum:
     values: [0.9]
   n_epochs:
-    values: [50]
+    values: [10]
   batch_size:
     values: [256]
   data_root:
@@ -31,11 +31,11 @@ parameters:
 
 # ============ GUARANTEE PARAMS ===========
   epsilon:
-    values: [0.05]
+    values: [0.01]
   kappa_max_quantile:
-    values: [0.95]
+    values: [0.99]
   delta:
-    values: [0.05]
+    values: [0.01]
   PGD_EPS:
     values: [0.5]
   PGD_ALPHA:
