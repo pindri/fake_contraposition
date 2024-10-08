@@ -8,16 +8,18 @@ from nnet_saver import nnet_exporter
 def quantitative_Marabou(model, step_num, max_radius, points):
     radii = []
     for idx, point in enumerate(points):
-        radius = 0
+        radius = max_radius - max_radius**-step_num
         increment = max_radius / 2
         # print("bek")
         for _ in range(step_num):
             with tempfile.NamedTemporaryFile(suffix=".nnet") as tmpfile:
                 nnet_exporter(model, tmpfile.name, points)
-                if verify_l_inf_ball(model, tmpfile.name, point, radius + increment) == "unsat":
-                    radius += increment
+                if verify_l_inf_ball(model, tmpfile.name, point, radius - increment) == "sat":
+                    radius -= increment
             increment = increment / 2
         radii.append(radius)
+        if idx % 10 == 0:
+            print(idx)
     return torch.tensor(radii)
 
 
