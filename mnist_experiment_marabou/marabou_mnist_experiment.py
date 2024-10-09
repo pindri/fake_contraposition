@@ -123,7 +123,7 @@ def sampling():
     print("Robustness done")
     confs = get_confidences(preds)
     scaled_confs = get_confidences(preds/scaled_model.temperature)
-
+    classes = get_classes(preds)
     table = wandb.Table(columns=["PGD_robustness", "confidence", "scaled_confidence", "class"])
     df = pd.DataFrame({"PGD_robustness": robs.tolist(),
                        "confidence": confs.tolist(),

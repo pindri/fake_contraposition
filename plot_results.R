@@ -12,32 +12,32 @@ for(seed in seeds){
         geom_point() +
         labs(title = paste("Robust Network ", seed),
              x = "confidence score (original)",
-             y = "Adversarial robustness (PGD Steps)")
+             y = "Adversarial robustness (PGD Steps)") + ylim(c(0,250))
     p_rob_scaled<-ggplot(data_rob, aes(x = scaled_confidence, y = PGD_robustness, color = as.factor(class))) +
         geom_point() +
         labs(title = paste("Robust Network, temp scaled ", seed),
              x = "confidence score (temperature scaled)",
-             y = "Adversarial robustness (PGD Steps)")
+             y = "Adversarial robustness (PGD Steps)") + ylim(c(0,250))
 
     p_non_rob<-ggplot(data_non_rob, aes(x = confidence, y = PGD_robustness, color = as.factor(class))) +
         geom_point() +
         labs(title = paste("Standard Network ", seed),
              x = "confidence score (original)",
-             y = "Adversarial robustness (PGD Steps)")
+             y = "Adversarial robustness (PGD Steps)") + ylim(c(0,250))
     p_non_rob_scaled<-ggplot(data_non_rob, aes(x = scaled_confidence, y = PGD_robustness, color = as.factor(class))) +
         geom_point() +
         labs(title = paste("Standard Network, temp scaled ", seed),
              x = "confidence score (temperature scaled)",
-             y = "Adversarial robustness (PGD Steps)")
+             y = "Adversarial robustness (PGD Steps)") + ylim(c(0,250))
 
 
     dp_rob <- ggplot(data_rob, aes(y = PGD_robustness, fill = as.factor(class))) +
         geom_density(alpha = 0.3) + theme_void() +
-        theme(legend.position = "none")
+        theme(legend.position = "none") + ylim(c(0,250))
 
     dp_non_rob <- ggplot(data_non_rob, aes(y = PGD_robustness, fill = as.factor(class))) +
         geom_density(alpha = 0.3) + theme_void() +
-        theme(legend.position = "none")
+        theme(legend.position = "none") + ylim(c(0,250))
 
     dp_rob_conf <- ggplot(data_rob, aes(x = confidence, fill = as.factor(class))) +
         geom_density(alpha = 0.3) + theme_void() +

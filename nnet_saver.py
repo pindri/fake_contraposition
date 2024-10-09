@@ -38,7 +38,7 @@ def nnet_exporter(model: torch.nn.Module, file, dataset, comment: str = ""):
         # f.write(f"{", ".join([str(inp.item()) for inp in (inputs.max(dim=1).values - inputs.min(dim=1).values)])}" + f", {out_range}\n")
         ranges = maxs-mins
         # print(ranges)
-        f.write(f"{','.join([str(i.item()) for i in ranges+0.0001])},1,\n")
+        f.write(f"{','.join([str(i.item()) for i in ranges+10**-10])},1,\n")
         # 9+: Begin defining the weight matrix for the first layer, followed by the bias vector.
         # The weights and biases for the second layer follow after, until the weights and biases for the output layer are defined.
         for weight, bias in zip(weights, biases):

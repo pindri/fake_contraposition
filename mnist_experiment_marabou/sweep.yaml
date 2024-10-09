@@ -1,5 +1,7 @@
 method: grid
 parameters:
+  optimization_function:
+    values: [ AT,Standard ]
   seed:
     values: [69, 420, 666, 42]
   scaler_split:
@@ -16,8 +18,7 @@ parameters:
     values: [256]
   data_root:
     values: ["mnist"]
-  optimization_function:
-    values: [AT,Standard]
+
   EPS:
     values: [0.5]
   ALPHA:
@@ -31,11 +32,11 @@ parameters:
 
 # ============ GUARANTEE PARAMS ===========
   epsilon:
-    values: [0.05]
+    values: [0.1]
   kappa_max_quantile:
-    values: [0.95]
+    values: [0.9]
   delta:
-    values: [0.05]
+    values: [0.1]
   PGD_EPS:
     values: [0.5]
   PGD_ALPHA:
@@ -46,8 +47,8 @@ parameters:
     values: [0.03125] # 8/256
 
   MARABOU_MAX_RADIUS:
-    values: [100]
+    values: [.25]
   MARABOU_STEPS:
-    values: [6]
+    values: [5]
 
 
