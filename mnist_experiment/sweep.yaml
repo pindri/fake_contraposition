@@ -1,7 +1,9 @@
 method: grid
 parameters:
+  optimization_function:
+    values: [AT,Standard ]
   seed:
-    values: [69, 420, 666, 42]
+    values: [666,69,42]
   scaler_split:
     values: [0.04]
   sampler_split:
@@ -11,19 +13,17 @@ parameters:
   momentum:
     values: [0.9]
   n_epochs:
-    values: [10]
+    values: [50]
   batch_size:
     values: [256]
   data_root:
     values: ["mnist"]
-  optimization_function:
-    values: [AT,Standard]
   EPS:
-    values: [0.5]
+    values: [0.05]
   ALPHA:
-    values: [0.1]
+    values: [0.00625]
   STEPS:
-    values: [10]
+    values: [15]
   STD:
     values: [1]
   layer_sizes:
