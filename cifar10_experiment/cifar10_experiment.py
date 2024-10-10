@@ -149,3 +149,9 @@ if __name__ == "__main__":
     # wandb.run(entity="peter-blohm-tu-wien", project="pag_mnist_test-orphans", sweep=sweep_configuration)
     sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_cifar_training_norml", sweep=sweep_configuration)
     wandb.agent(sweep_id, function=training)
+
+    sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_cifar_scaling_norml", sweep=sweep_configuration)
+    wandb.agent(sweep_id, function=scaling)
+
+    sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_cifar_sampling_norml", sweep=sweep_configuration)
+    wandb.agent(sweep_id, function=sampling)

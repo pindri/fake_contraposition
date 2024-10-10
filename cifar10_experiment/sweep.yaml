@@ -19,7 +19,7 @@ parameters:
   data_root:
     values: ["cifar10"]
   EPS:
-    values: [0.06125]
+    values: [0.03125]
   ALPHA:
     values: [0.0078125]
   STEPS:
