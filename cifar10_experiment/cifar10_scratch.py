@@ -18,10 +18,10 @@ def train_and_store_networks(seed, path, robust):
         get_loaders('cifar10', val_split=0.2, batch_size=512, flatten=False))
 
     # resnet_model = torch.hub.load('pytorch/vision:v0.10.0', 'wide_resnet50_2', pretrained=False)
-    normal_model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
+    normal_model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=False)
 
     robust_model = mair.RobModel(normal_model, n_classes=dim_output)
-
+    robust_model = robust_model.cuda()
     # return robust_model, val_loader, test_loader
     if torch.cuda.is_available():
         robust_model = robust_model.cuda()
@@ -33,7 +33,7 @@ def train_and_store_networks(seed, path, robust):
         trainer = Standard(robust_model)
     trainer.record_rob(train_loader, val_loader, eps=.5, alpha=.1,
                        steps=10, std=1)
-    trainer.setup(optimizer=f"SGD(lr={10**-4}, momentum={0.1})",
+    trainer.setup(optimizer=f"SGD(lr={10**-2}, momentum={0.1})",
                   scheduler="Step(milestones=[100, 150], gamma=0.1)",
                   scheduler_type="Epoch",
                   minimizer=None,  # or "AWP(rho=5e-3)",
@@ -79,9 +79,10 @@ def sample_from_dataloader(loader, num_points, std=0.1):
     dataset = torch.cat(all_inputs, dim=0)
     labels_tensor = torch.cat(all_labels, dim=0)
     print(dataset.shape)
-    n, d = dataset.shape
+    n = dataset.shape[0]
     idx = torch.floor(torch.rand(num_points) * n).int()
     dataset_resampled = dataset[idx,]
+    print(dataset_resampled.shape)
     return torch.clamp(dataset_resampled + torch.randn_like(dataset_resampled) * std, 0, 1)
 
 
