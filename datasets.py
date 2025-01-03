@@ -43,7 +43,8 @@ def get_loaders(dataset_name, batch_size=32, val_split=0.2, scaler_split=0.2, sa
     elif dataset_name.lower() == 'mnist':
         dim_input = 784
         dim_output = 10
-        transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
+        transform = transforms.Compose([transforms.ToTensor(),
+                                        transforms.Normalize((0.1307,), (0.3081,))])
         if flatten:
             flatten_transform = transforms.Compose([
                 transforms.Lambda(lambda x: x.view(-1))  # Flatten.
@@ -66,9 +67,9 @@ def get_loaders(dataset_name, batch_size=32, val_split=0.2, scaler_split=0.2, sa
     elif dataset_name.lower() == 'cifar10':
         dim_input = 32*32*3
         dim_output = 10
-        # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         transform = transforms.Compose([transforms.ToTensor(),
-                                        ])
+                                        transforms.Normalize(mean=[0.4914, 0.4822, 0.4465],
+                                                             std=[0.2023, 0.1994, 0.2010])])
         if flatten:
             flatten_transform = transforms.Compose([
                 transforms.Lambda(lambda x: x.view(-1))  # Flatten.

@@ -74,7 +74,7 @@ def verify_l_inf_ball(model, nnet_file, point, max_radius):
         network.setLowerBound(input_vars[i], max(lower_bound, 0))#network.getInputMinimum(input_vars[i])))
         network.setUpperBound(input_vars[i], min(upper_bound, 1))#network.getInputMaximum(input_vars[i])))
         # network.addInequality([input_vars[i]], [-1], -lower_bound)
-
+        network.ad
     # Get the current class label from the network by feeding the input point
     output_class = model(point.unsqueeze(0)).argmax().item()
     # print(f"output class: {output_class}")
@@ -84,7 +84,7 @@ def verify_l_inf_ball(model, nnet_file, point, max_radius):
 
     # Add a max constraint to ensure max_var is the maximum of all output variables
     network.addMaxConstraint(set(output_vars), max_var)
-    network.addInequality([max_var, output_vars[output_class]], [-1, 1], -10 ** -10)
+    network.addInequality([max_var, output_vars[output_class]], [-1, 1], -10 ** -6)
     # for i in range(len(output_vars)):
     #     if i != output_class:
     #         network.addInequality([output_vars[output_class], output_vars[i]], [1, -1], 0)
