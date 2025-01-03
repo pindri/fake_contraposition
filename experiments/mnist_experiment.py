@@ -13,6 +13,6 @@ if __name__ == "__main__":
     wandb.agent(sweep_id, function=lambda: temperature_scale_network("mnist", "feed_forward"))
     sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_mnist_sample_train_normal",
                            sweep=sweep_configuration)
-    wandb.agent(sweep_id, function=sampling)
+    wandb.agent(sweep_id, function=lambda: sampling("mnist", "feed_forward","pgd"))
     sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_mnist_test_normal", sweep=sweep_configuration)
-    wandb.agent(sweep_id, function=testing)
+    wandb.agent(sweep_id, function=lambda: testing("mnist", "feed_forward","pgd"))
