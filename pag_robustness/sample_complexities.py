@@ -32,4 +32,4 @@ def union_bound_original_inequality(n: int, eps: float = 0.05, delta: float = 0.
 
 
 if __name__ == '__main__':
-    print(complexity(0.0001, 0.01))
+    print(complexity(0.0001, 0.005))

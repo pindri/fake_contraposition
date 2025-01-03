@@ -1,9 +1,9 @@
 method: grid
 parameters:
-  seed:
-    values: [ 69, 666, 42, 420 ]
   optimization_function:
     values: [ AT,Standard ]
+  seed:
+    values: [69, 666, 42, 420]
   scaler_split:
     values: [0.04]
   sampler_split:
@@ -17,8 +17,7 @@ parameters:
   batch_size:
     values: [256]
   data_root:
-    values: ["mnist"]
-
+    values: ["cifar10"]
   EPS:
     values: [0.5]
   ALPHA:
@@ -27,28 +26,26 @@ parameters:
     values: [10]
   STD:
     values: [1]
-  layer_sizes:
-    values: [[50,10]]
 
 # ============ GUARANTEE PARAMS ===========
   epsilon:
-    values: [0.9]
+    values: [0.01]
   kappa_max_quantile:
-    values: [0.1]
+    values: [0.99]
   delta:
-    values: [0.1]
+    values: [0.01]
   PGD_EPS:
     values: [0.5]
   PGD_ALPHA:
-    values: [0.1953125] # 0.5/256
+    values: [0.001953125] # 0.5/256
   PGD_STEPS:
     values: [500]
   SAMPLING_GN_STD:
     values: [0.03125] # 8/256
 
   MARABOU_MAX_RADIUS:
-    values: [.25]
+    values: [100]
   MARABOU_STEPS:
-    values: [5]
+    values: [6]
 
 

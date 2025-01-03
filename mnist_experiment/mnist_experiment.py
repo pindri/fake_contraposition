@@ -84,7 +84,10 @@ def scaling():
 
     # print(normal_model.state_dict())
     scaled_model = TemperatureScaledNetwork(robust_model)
-    scaled_model.set_temperature(scaler_loader)
+    if wandb.config.optimization_function == "AT":
+        scaled_model.set_temperature(scaler_loader, reg=0.2)
+    else:
+        scaled_model.set_temperature(scaler_loader, reg=0.05)
     torch.save(scaled_model.state_dict(), f"{wandb.run.dir}.h5")
     torch.save(scaled_model.state_dict(),
                f"../models/scaled/{wandb.config.optimization_function}_{wandb.config.seed}.torch")
@@ -197,11 +200,11 @@ if __name__ == "__main__":
         sweep_configuration = yaml.safe_load(stream)
     #
     # wandb.run(entity="peter-blohm-tu-wien", project="pag_mnist_test-orphans", sweep=sweep_configuration)
-    sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_mnist_train_norml", sweep=sweep_configuration)
-    wandb.agent(sweep_id, function=training)
-    sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_mnist_scale_norml", sweep=sweep_configuration)
-    wandb.agent(sweep_id, function=scaling)
-    sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_mnist_sample_train_norml", sweep=sweep_configuration)
-    wandb.agent(sweep_id, function=sampling)
+    # sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_mnist_train_norml", sweep=sweep_configuration)
+    # wandb.agent(sweep_id, function=training)
+    # sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_mnist_scale_norml", sweep=sweep_configuration)
+    # wandb.agent(sweep_id, function=scaling)
+    # sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_mnist_sample_train_norml", sweep=sweep_configuration)
+    # wandb.agent(sweep_id, function=sampling)
     sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_mnist_test_norml", sweep=sweep_configuration)
     wandb.agent(sweep_id, function=testing)
