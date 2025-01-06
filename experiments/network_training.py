@@ -1,3 +1,5 @@
+import os
+
 import mair
 import numpy as np
 import pandas as pd
@@ -93,10 +95,12 @@ def train_network(dataset: str, network_type: str):
 
 def temperature_scale_network(dataset: str, network_type: str):
     name, robust_model, loaders = setup_and_get_data(dataset, network_type)
-    robust_model.load_state_dict(torch.load(f'../rob/{name}/best.pth', weights_only=False))
+    robust_model.load_state_dict(torch.load(f'../rob/{name}/best.pth', weights_only=False)["rmodel"])
 
     scaled_model = TemperatureScaledNetwork(robust_model)
     scaled_model.set_temperature(loaders["scale"], reg=wandb.config.temp_scaling_regularization)
+
+    os.makedirs(f'../rob/scaled/{name}', exist_ok=True)
     torch.save(scaled_model.state_dict(), f'../rob/scaled/{name}/best.pth')
 
 
@@ -140,8 +144,8 @@ def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_
 
 def sampling(dataset: str, network_type: str, method: str):
     name, robust_model, loaders = setup_and_get_data(dataset, network_type)
-    name = f"{name}_{method}"
-    robust_model.load_state_dict(torch.load(f'../rob/{name}/best.pth', weights_only=False))
+
+    robust_model.load_state_dict(torch.load(f'../rob/{name}/best.pth', weights_only=False)["rmodel"])
 
     scaled_model = TemperatureScaledNetwork(robust_model)
     scaled_model.load_state_dict(torch.load(f'../rob/scaled/{name}/best.pth', weights_only=False))
@@ -150,13 +154,12 @@ def sampling(dataset: str, network_type: str, method: str):
     validation_sample = sample_from_dataloader(loader=loaders["val"], num_points=num_points,
                                                std=wandb.config.SAMPLING_GN_STD)
 
-    attack_model(robust_model, validation_sample, method, scaled_model.temperature)
+    attack_model(f"{name}_{method}", robust_model, validation_sample[0], method, scaled_model.temperature)
 
 
 def testing(dataset: str, network_type: str, method: str):
     name, robust_model, loaders = setup_and_get_data(dataset, network_type)
-    name = f"{name}_{method}"
-    robust_model.load_state_dict(torch.load(f'../rob/{name}/best.pth', weights_only=False))
+    robust_model.load_state_dict(torch.load(f'../rob/{name}/best.pth', weights_only=False)["rmodel"])
 
     scaled_model = TemperatureScaledNetwork(robust_model)
     scaled_model.load_state_dict(torch.load(f'../rob/scaled/{name}/best.pth', weights_only=False))
@@ -171,5 +174,5 @@ def testing(dataset: str, network_type: str, method: str):
     all_labels = torch.cat(all_labels, dim=0)
     all_inputs = torch.cat(all_inputs, dim=0)
 
-    classes = attack_model(name, robust_model, all_inputs, method, scaled_model.temperature)
+    classes = attack_model(f"{name}_{method}", robust_model, all_inputs, method, scaled_model.temperature)
     print(f"accuracy: {(all_labels == classes).sum()}")

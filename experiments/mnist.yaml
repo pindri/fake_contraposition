@@ -17,15 +17,15 @@ parameters:
   weight_decay:
     values: [5e-4]
   n_epochs:
-    values: [100]
+    values: [20]
   batch_size:
     values: [256]
   dataset:
     values: ["mnist"]
   EPS:
-    values: [0.05]
+    values: [0.1] #8/255
   ALPHA:
-    values: [0.00625]
+    values: [0.0125]
   STEPS:
     values: [15]
   STD:
