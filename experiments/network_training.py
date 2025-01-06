@@ -62,7 +62,7 @@ def train_network(dataset: str, network_type: str):
     trainer.setup(optimizer=f"SGD(lr={wandb.config.lr}, "
                             f"    momentum={wandb.config.momentum}, "
                             f"    weight_decay={wandb.config.weight_decay})",
-                  scheduler="Step(milestones=[100, 150], gamma=0.1)",
+                  scheduler="Step(milestones=[10, 15], gamma=0.1)",
                   scheduler_type="Epoch",
                   minimizer=None,  # or "AWP(rho=5e-3)",
                   n_epochs=wandb.config.n_epochs

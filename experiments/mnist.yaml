@@ -1,5 +1,7 @@
 method: grid
 parameters:
+  robust_beta:
+    values: [0.001, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2]
   optimization_function:
     values: [AT, Standard]
   seed:
@@ -23,11 +25,11 @@ parameters:
   dataset:
     values: ["mnist"]
   EPS:
-    values: [0.1] #8/255
+    values: [0.6] #8/255
   ALPHA:
-    values: [0.0125]
+    values: [0.025]
   STEPS:
-    values: [15]
+    values: [50]
   STD:
     values: [1]
   layer_sizes:
