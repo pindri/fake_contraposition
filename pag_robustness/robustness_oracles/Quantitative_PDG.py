@@ -63,8 +63,8 @@ class Quantitative_PGD:
     def _forward(self, inputs, labels) -> (torch.Tensor, torch.Tensor):
         # hack: we denormalize mnist and cifar based on input.ndim:
         if inputs.dim() == 4:
-            mean = [0.4914, 0.4822, 0.4465],
-            std = [0.2023, 0.1994, 0.2010]
+            mean=[0.4914, 0.4822, 0.4465]
+            std=[0.2470, 0.2435, 0.2616]
             min_val = (- torch.tensor(mean, device=self.device)
                        .view(1, -1, 1, 1) / torch.tensor(std, device=self.device).view(1, -1, 1, 1))
             max_val = (1 - torch.tensor(mean, device=self.device)

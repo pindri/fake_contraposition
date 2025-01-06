@@ -6,7 +6,7 @@ import pandas as pd
 from torch import Tensor
 
 import wandb
-from mair import Standard, AT, RobModel
+from mair import Standard, AT, RobModel, TRADES
 import torch
 
 from datasets import get_loaders
@@ -23,18 +23,19 @@ def get_base_model(dim_input: int, dim_output: int, network_type: str) -> RobMod
         case "feed_forward":
             normal_model = FFNetwork(dim_input, dim_output, layer_sizes=wandb.config.layer_sizes)
         case "resnet18":
-            normal_model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
+            # normal_model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
+            normal_model = torch.hub.load('chenyaofo/pytorch-cifar-models', 'cifar10_resnet20', pretrained=True)
         case _:
             raise "unknown network type"
     robust_model = mair.RobModel(normal_model, n_classes=dim_output)
-    if torch.cuda.is_available():
+    if torch.cuda.is_available() or True:
         robust_model = robust_model.cuda()
     return robust_model
 
 
 def setup_and_get_data(dataset, network_type) -> (str, RobModel, dict):
     wandb.init(entity="peter-blohm-tu-wien", project=f"pag_experiment_{dataset}_{network_type}")
-    name = f'{dataset}_{network_type}_{wandb.config.optimization_function}_{wandb.config.seed}'
+    name = f'{dataset}_{network_type}_{wandb.config.optimization_function}_{wandb.config.seed}_{wandb.config.robust_beta}'
     np.random.seed(wandb.config.seed)
     torch.random.manual_seed(wandb.config.seed)
 
@@ -50,9 +51,9 @@ def train_network(dataset: str, network_type: str):
 
     # adversarial training or standard
     if wandb.config.optimization_function == "AT":
-        trainer = AT(robust_model, eps=wandb.config.EPS,
+        trainer = TRADES(robust_model, eps=wandb.config.EPS,
                      alpha=wandb.config.ALPHA,
-                     steps=wandb.config.STEPS)
+                     steps=wandb.config.STEPS, beta=wandb.config.robust_beta)
     else:
         trainer = Standard(robust_model)
 
@@ -61,11 +62,10 @@ def train_network(dataset: str, network_type: str):
     trainer.setup(optimizer=f"SGD(lr={wandb.config.lr}, "
                             f"    momentum={wandb.config.momentum}, "
                             f"    weight_decay={wandb.config.weight_decay})",
-                  scheduler="MultiStepLR(milestones=[100, 150], gamma=0.1)",
+                  scheduler="Step(milestones=[100, 150], gamma=0.1)",
                   scheduler_type="Epoch",
                   minimizer=None,  # or "AWP(rho=5e-3)",
-                  n_epochs=wandb.config.n_epochs,
-                  clip_grad_norm=1.0
+                  n_epochs=wandb.config.n_epochs
                   )
     trainer.fit(train_loader=loaders["train"],
                 n_epochs=wandb.config.n_epochs,

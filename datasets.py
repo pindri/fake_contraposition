@@ -67,9 +67,11 @@ def get_loaders(dataset_name, batch_size=32, val_split=0.2, scaler_split=0.2, sa
     elif dataset_name.lower() == 'cifar10':
         dim_input = 32*32*3
         dim_output = 10
-        transform = transforms.Compose([transforms.ToTensor(),
-                                        transforms.Normalize(mean=[0.4914, 0.4822, 0.4465],
-                                                             std=[0.2023, 0.1994, 0.2010])])
+        transform = transforms.Compose([
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(10),  # Rotate up to ±10 degrees
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616])])
         if flatten:
             flatten_transform = transforms.Compose([
                 transforms.Lambda(lambda x: x.view(-1))  # Flatten.
