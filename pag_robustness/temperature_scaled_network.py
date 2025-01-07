@@ -78,6 +78,8 @@ class TemperatureScaledNetwork(nn.Module):
         temperature = self.temperature.expand(logits.size(0), logits.size(1))
         return logits / temperature
 
+
+
     def set_temperature(self, val_loader, reg=0):
         """
         Tune the temperature parameter (T) on validation data to minimize negative log-likelihood (NLL).
@@ -92,6 +94,7 @@ class TemperatureScaledNetwork(nn.Module):
         with torch.no_grad():
             # logits = self.model(points)
             for inputs, labels in val_loader:
+                inputs = inputs.cuda()
                 logits = self.model(inputs)
                 logits_list.append(logits)
                 labels_list.append(labels)
@@ -108,11 +111,17 @@ class TemperatureScaledNetwork(nn.Module):
 
         def eval_opt():
             optimizer.zero_grad()
-            loss = nll_criterion(logits / self.temperature, labels)
+            # loss = nll_criterion(logits / self.temperature, labels.cuda())
             # Regularization against overconfidence
             reg_strength = reg
-            regularization_term = reg_strength * self.temperature
-            loss = loss - regularization_term
+            # regularization_term = reg_strength * self.temperature
+            # loss = loss - regularization_term
+            scaled_logits = logits / self.temperature
+            probabilities = torch.softmax(scaled_logits, dim=1)
+            max_confidences, _ = torch.max(probabilities, dim=1)
+            avg_confidence = torch.mean(max_confidences)
+            target_confidence = .5
+            loss = (avg_confidence - target_confidence) ** 2
             loss.backward()
             return loss
 

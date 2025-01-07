@@ -1,13 +1,17 @@
+import gc
 import os
 
+import torch
+if not torch.cuda.is_available():
+    raise Exception("what the heeeell")
 import mair
 import numpy as np
 import pandas as pd
+import yaml
 from torch import Tensor
 
 import wandb
 from mair import Standard, AT, RobModel, TRADES
-import torch
 
 from datasets import get_loaders
 from network_utils import get_classes, get_confidences
@@ -94,10 +98,14 @@ def train_network(dataset: str, network_type: str):
 
 
 def temperature_scale_network(dataset: str, network_type: str):
+    if not torch.cuda.is_available():
+        raise Exception("what the heeeell")
     name, robust_model, loaders = setup_and_get_data(dataset, network_type)
-    robust_model.load_state_dict(torch.load(f'../rob/{name}/best.pth', weights_only=False)["rmodel"])
-
+    print(name)
+    robust_model.load_state_dict(torch.load(f'../rob/{name}/best.pth', weights_only=False, map_location="cpu")["rmodel"])
+    robust_model = robust_model.cuda()
     scaled_model = TemperatureScaledNetwork(robust_model)
+    scaled_model = scaled_model.cuda()
     scaled_model.set_temperature(loaders["scale"], reg=wandb.config.temp_scaling_regularization)
 
     os.makedirs(f'../rob/scaled/{name}', exist_ok=True)
@@ -105,12 +113,12 @@ def temperature_scale_network(dataset: str, network_type: str):
 
 
 def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_temp: int = 1):
-    preds = model(data)
+    preds = model(data.cuda())
 
     match method:
         case "pgd":
             rob_pgd = Quantitative_PGD(model, eps=wandb.config.PGD_EPS, alpha=wandb.config.PGD_ALPHA,
-                                       steps=wandb.config.PGD_STEPS, random_start=False)
+                                       steps=wandb.config.PGD_STEPS, random_start=False, device="cuda:0")
 
             classes = get_classes(preds)
             steps, distances = rob_pgd.forward(data, classes)
@@ -124,7 +132,7 @@ def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_
             raise "unknown robustness oracle"
     print("Robustness done")
     confs = get_confidences(preds)
-    scaled_confs = get_confidences(preds / scaling_temp)
+    scaled_confs = get_confidences(preds / scaling_temp.cuda())
     table = wandb.Table(
         columns=[f"{method}_robustness_steps", f"{method}_robustness_distances", "confidence", "scaled_confidence",
                  "class"])
@@ -134,35 +142,46 @@ def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_
                        "scaled_confidence": scaled_confs.tolist(),
                        "class": classes.tolist()})
     # Save the DataFrame to CSV locally
+
     df.to_csv(f"../results/sampling_{name}.csv", index=False)
+    del df
     # Add data points to the table
-    for i in range(len(data)):
-        table.add_data(steps[i], distances[i], confs[i], scaled_confs[i], classes[i])
-    wandb.log({"sampling_table": table})
+    # for i in range(len(data)):
+    #     table.add_data(steps[i], distances[i], confs[i], scaled_confs[i], classes[i])
+    # wandb.log({"sampling_table": table})
+    del table
     return classes
 
 
 def sampling(dataset: str, network_type: str, method: str):
     name, robust_model, loaders = setup_and_get_data(dataset, network_type)
 
-    robust_model.load_state_dict(torch.load(f'../rob/{name}/best.pth', weights_only=False)["rmodel"])
+    robust_model.load_state_dict(torch.load(f'../rob/{name}/best.pth', weights_only=False, map_location="cpu")["rmodel"])
 
     scaled_model = TemperatureScaledNetwork(robust_model)
-    scaled_model.load_state_dict(torch.load(f'../rob/scaled/{name}/best.pth', weights_only=False))
+    scaled_model.load_state_dict(torch.load(f'../rob/scaled/{name}/best.pth', weights_only=False, map_location="cpu"))
 
     num_points = complexity(wandb.config.epsilon * (1 - wandb.config.kappa_max_quantile), wandb.config.delta)
     validation_sample = sample_from_dataloader(loader=loaders["val"], num_points=num_points,
                                                std=wandb.config.SAMPLING_GN_STD)
     print("val", validation_sample[0].min(), validation_sample[0].max())
     attack_model(f"{name}_{method}", robust_model, validation_sample[0], method, scaled_model.temperature)
-
+    del robust_model
+    del scaled_model
+    validation_sample[0].detach().cpu()
+    del validation_sample
+    gc.collect()
+    torch.cuda.reset_peak_memory_stats()
+    torch.cuda.reset_accumulated_memory_stats()
+    torch.cuda.empty_cache()
+    wandb.finish()
 
 def testing(dataset: str, network_type: str, method: str):
     name, robust_model, loaders = setup_and_get_data(dataset, network_type)
-    robust_model.load_state_dict(torch.load(f'../rob/{name}/best.pth', weights_only=False)["rmodel"])
-
+    robust_model.load_state_dict(torch.load(f'../rob/{name}/best.pth', weights_only=False, map_location="cpu")["rmodel"])
+    robust_model.cuda()
     scaled_model = TemperatureScaledNetwork(robust_model)
-    scaled_model.load_state_dict(torch.load(f'../rob/scaled/{name}/best.pth', weights_only=False))
+    scaled_model.load_state_dict(torch.load(f'../rob/scaled/{name}/best.pth', weights_only=False, map_location="cpu"))
 
     all_inputs = []
     all_labels = []
@@ -174,5 +193,5 @@ def testing(dataset: str, network_type: str, method: str):
     all_labels = torch.cat(all_labels, dim=0)
     all_inputs = (torch.cat(all_inputs, dim=0))
     print(all_inputs.min(), all_inputs.max())
-    classes = attack_model(f"{name}_{method}", robust_model, all_inputs, method, scaled_model.temperature)
-    print(f"accuracy: {(all_labels == classes).sum()}")
+    classes = attack_model(f"test_{name}_{method}", robust_model, all_inputs, method, scaled_model.temperature,)
+    print(f"accuracy: {(all_labels.cuda() == classes).sum()}")
