@@ -4,6 +4,8 @@ from mair.attacks.attack import Attack
 from torch import nn
 from torchvision import transforms
 
+from pag_robustness.temperature_scaled_network import denormalize_data, renormalize_data
+
 
 class Quantitative_PGD:
     """
@@ -40,10 +42,12 @@ class Quantitative_PGD:
         return torch.cat(output_vectors, dim=0)
 
     def forward(self, inputs, labels):
+        print("sample-checking in progress")
         self.model.eval()
         batch_size = 16192
         num_batches = inputs.size(0) // batch_size + int(inputs.size(0) % batch_size != 0)
         outputs = []
+        dists = []
 
         for i in range(num_batches):
             start_idx = i * batch_size
@@ -52,64 +56,48 @@ class Quantitative_PGD:
             batch_labels = labels[start_idx:end_idx].to(self.device)  # Get the batch
 
             # Forward pass
-            batch_outputs = self._forward(batch_points, batch_labels)
+            batch_outputs, batch_dists = self._forward(batch_points, batch_labels)
 
             # Move the outputs back to the CPU if you're using a GPU
             outputs.append(batch_outputs.cpu())
+            dists.append(batch_dists.cpu())
 
             # Concatenate all the outputs into a single tensor
-        return torch.cat(outputs, dim=0)
+        return torch.cat(outputs, dim=0), torch.cat(dists, dim=0)
 
     def _forward(self, inputs, labels) -> (torch.Tensor, torch.Tensor):
-        # hack: we denormalize mnist and cifar based on input.ndim:
-        if inputs.dim() == 4:
-            mean=[0.4914, 0.4822, 0.4465]
-            std=[0.2470, 0.2435, 0.2616]
-            min_val = (- torch.tensor(mean, device=self.device)
-                       .view(1, -1, 1, 1) / torch.tensor(std, device=self.device).view(1, -1, 1, 1))
-            max_val = (1 - torch.tensor(mean, device=self.device)
-                       .view(1, -1, 1, 1)) / torch.tensor(std, device=self.device).view(1, -1, 1, 1)
-        else:
-            mean = [0.1307,]
-            std = [0.3081,]
-            min_val = (- torch.tensor(mean, device=self.device)
-                       .view(1, -1) / torch.tensor(std, device=self.device).view(1, -1))
-            max_val = (1 - torch.tensor(mean, device=self.device)
-                       .view(1, -1)) / torch.tensor(std, device=self.device).view(1, -1)
         inputs = inputs.clone().detach().to(self.device)
         labels = labels.clone().detach().to(self.device)
 
         loss = nn.CrossEntropyLoss()
         adv_inputs = inputs.clone().detach()
+        denormalized_inputs = denormalize_data(inputs.clone().detach())
 
         if self.random_start:
             # Starting at a uniformly random point
-            adv_inputs = adv_inputs + torch.empty_like(adv_inputs).uniform_(
-                -self.eps, self.eps
-            )
-            adv_inputs = torch.clamp(adv_inputs, min=0, max=1).detach()
+            adv_inputs = denormalize_data(adv_inputs) + torch.rand_like(inputs)*0.2*self.eps-0.1*self.eps
+            adv_inputs = renormalize_data(torch.clamp(adv_inputs, min=0, max=1).detach())
         break_vector = torch.ones(adv_inputs.shape[0]).to(self.device) * self.steps
         distance_vector = torch.ones(adv_inputs.shape[0]) * float('inf')
 
         idx = torch.Tensor(range(adv_inputs.shape[0])).int().to(self.device)
         # print(idx)
         for i in range(self.steps):
+
             adv_inputs.requires_grad = True
             outputs = self.model(adv_inputs)
             # Calculate loss
             cost = loss(outputs.to(self.device), labels[idx])
 
             # Update adversarial images
-            grad = torch.autograd.grad(
-                cost, adv_inputs, retain_graph=False, create_graph=False
-            )[0]
+            grad = torch.autograd.grad(cost, adv_inputs, retain_graph=False, create_graph=False)[0]
 
-            adv_inputs = adv_inputs.detach() + self.alpha * grad.sign()
-            delta = torch.clamp(adv_inputs - inputs[idx,], min=-self.eps, max=self.eps)
+            delta = torch.clamp(denormalize_data(adv_inputs) + self.alpha * grad.sign() - denormalized_inputs[idx,],
+                                min=-self.eps, max=self.eps)
             # Originally clamped in [0, 1] (to obtain a sample in the data space), but we don't like that.
 
-
-            adv_inputs = torch.clamp(inputs[idx] + delta, min=min_val, max=max_val).detach()
+            adv_inputs = renormalize_data(torch.clamp(denormalized_inputs[idx,] + delta, min=0, max=1).detach())
+            print(adv_inputs.min(), adv_inputs.max())
             # adv_inputs = torch.clamp(inputs[idx,] + delta, min=0, max=1).detach()
 
             # for all indices in breakdown vector where: the value is self.steps and the model label is NOT the
@@ -120,19 +108,22 @@ class Quantitative_PGD:
             # print(inputs)
             # print(adv_inputs)
 
-
-            # robust indices
-            resistant_samples = ((self.model(adv_inputs).argmax(dim=1) == self.model(inputs[idx]).argmax(dim=1))
+            resistant_samples = ((self.model(adv_inputs).argmax(dim=1) == labels[idx])
                                  .to(self.device))
             break_vector[idx[~resistant_samples]] = i
 
-            distance_vector[idx[~resistant_samples]] = torch.norm(inputs[idx]-adv_inputs, p=float('inf'), dim=tuple(range(1,inputs.ndim)))[~resistant_samples]
+            distance_vector[idx[~resistant_samples]] = (torch.norm(inputs[idx]-adv_inputs,
+                                                                   p=float('inf'),
+                                                                   dim=list(range(1, inputs.ndim)))
+                                                        )[~resistant_samples]
             adv_inputs = adv_inputs[resistant_samples]
+            # adv_inputs = adv_inputs[resistant_samples]
             # print(i, inputs[idx,].shape)
             idx = idx[resistant_samples]
+            print(len(idx), i)
             if len(idx) == 0:
                 break
-        return break_vector
+        return break_vector, distance_vector
 
 
 def batched_forward(model, points, batch_size = 1024, device = torch.device("cuda")):

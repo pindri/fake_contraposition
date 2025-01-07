@@ -2,9 +2,42 @@ import torch
 import torch.nn as nn
 
 
+def denormalize_data(data: torch.Tensor) -> torch.Tensor:
+    # hack: we denormalize mnist and cifar based on input.ndim:
+
+    if data.dim() == 4:
+        mean = [0.4914, 0.4822, 0.4465]
+        std = [0.2470, 0.2435, 0.2616]
+        means = torch.tensor(mean, device=data.device).view(1, -1, 1, 1)
+        stds = torch.tensor(std, device=data.device).view(1, -1, 1, 1)
+    else:
+        mean = [0.1307, ]
+        std = [0.3081, ]
+        means = torch.tensor(mean, device=data.device).view(1, -1)
+        stds = torch.tensor(std, device=data.device).view(1, -1)
+
+    return means + (data) * stds
+    # return data
+
+def renormalize_data(data: torch.Tensor) -> torch.Tensor:
+    # hack: we renormalize mnist and cifar based on input.ndim:
+    if data.dim() == 4:
+        mean = [0.4914, 0.4822, 0.4465]
+        std = [0.2470, 0.2435, 0.2616]
+        means = torch.tensor(mean, device=data.device).view(1, -1, 1, 1)
+        stds = torch.tensor(std, device=data.device).view(1, -1, 1, 1)
+    else:
+        mean = [0.1307, ]
+        std = [0.3081, ]
+        means = torch.tensor(mean, device=data.device).view(1, -1)
+        stds = torch.tensor(std, device=data.device).view(1, -1)
+
+    return (data - means) / stds
+    # return data
+
 def sample_from_dataloader(loader, num_points, std=0.1):
-    #TODO: build in caching
-    #TODO: bounds of the data after normalization
+    # TODO: build in caching
+    # TODO: bounds of the data after normalization
     """
     returns a tensor that is sampled from the given dataset with gaussian noise with std
     """
@@ -13,7 +46,7 @@ def sample_from_dataloader(loader, num_points, std=0.1):
 
     # Iterate through the DataLoader
     for inputs, labels in loader:
-        all_inputs.append(inputs)
+        all_inputs.append(denormalize_data(inputs))
         all_labels.append(labels)
 
     # Concatenate all inputs and labels into two big tensors
@@ -23,7 +56,9 @@ def sample_from_dataloader(loader, num_points, std=0.1):
     n, d = dataset.shape
     idx = torch.floor(torch.rand(num_points) * n).int()
     dataset_resampled = dataset[idx,]
-    return torch.clamp(dataset_resampled + torch.randn_like(dataset_resampled) * std, 0, 1), labels_tensor[idx,]
+    print(dataset_resampled.min())
+    return (renormalize_data(torch.clamp(dataset_resampled + torch.randn_like(dataset_resampled) * std, 0, 1)),
+            labels_tensor[idx,])
 
 
 class TemperatureScaledNetwork(nn.Module):

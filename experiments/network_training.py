@@ -15,7 +15,7 @@ from models import FFNetwork
 from pag_robustness.robustness_oracles.Quantitative_Marabou import quantitative_Marabou
 from pag_robustness.robustness_oracles.Quantitative_PDG import Quantitative_PGD
 from pag_robustness.sample_complexities import complexity
-from pag_robustness.temperature_scaled_network import TemperatureScaledNetwork, sample_from_dataloader
+from pag_robustness.temperature_scaled_network import TemperatureScaledNetwork, sample_from_dataloader, denormalize_data
 
 
 def get_base_model(dim_input: int, dim_output: int, network_type: str) -> RobModel:
@@ -28,7 +28,7 @@ def get_base_model(dim_input: int, dim_output: int, network_type: str) -> RobMod
         case _:
             raise "unknown network type"
     robust_model = mair.RobModel(normal_model, n_classes=dim_output)
-    if torch.cuda.is_available() or True:
+    if torch.cuda.is_available():
         robust_model = robust_model.cuda()
     return robust_model
 
@@ -153,7 +153,7 @@ def sampling(dataset: str, network_type: str, method: str):
     num_points = complexity(wandb.config.epsilon * (1 - wandb.config.kappa_max_quantile), wandb.config.delta)
     validation_sample = sample_from_dataloader(loader=loaders["val"], num_points=num_points,
                                                std=wandb.config.SAMPLING_GN_STD)
-
+    print("val", validation_sample[0].min(), validation_sample[0].max())
     attack_model(f"{name}_{method}", robust_model, validation_sample[0], method, scaled_model.temperature)
 
 
@@ -172,7 +172,7 @@ def testing(dataset: str, network_type: str, method: str):
         all_inputs.append(inputs)
         all_labels.append(labels)
     all_labels = torch.cat(all_labels, dim=0)
-    all_inputs = torch.cat(all_inputs, dim=0)
-
+    all_inputs = (torch.cat(all_inputs, dim=0))
+    print(all_inputs.min(), all_inputs.max())
     classes = attack_model(f"{name}_{method}", robust_model, all_inputs, method, scaled_model.temperature)
     print(f"accuracy: {(all_labels == classes).sum()}")

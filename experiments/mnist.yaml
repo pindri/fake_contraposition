@@ -19,7 +19,7 @@ parameters:
   weight_decay:
     values: [5e-4]
   n_epochs:
-    values: [20]
+    values: [2]
   batch_size:
     values: [256]
   dataset:
@@ -43,11 +43,11 @@ parameters:
   delta:
     values: [0.005]
   PGD_EPS:
-    values: [0.5]
+    values: [1]
   PGD_ALPHA:
-    values: [0.001953125] # 0.5/256
+    values: [0.00392157] # 0.5/256
   PGD_STEPS:
-    values: [500]
+    values: [512]
   SAMPLING_GN_STD:
     values: [0.03125] # 8/256
 
