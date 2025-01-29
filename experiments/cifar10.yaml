@@ -45,7 +45,7 @@ parameters:
   PGD_EPS:
     values: [0.5]
   PGD_ALPHA:
-    values: [0.001953125] # 0.5/256
+    values: [0.000390625] # 0.1/256
   PGD_STEPS:
     values: [500]
   SAMPLING_GN_STD:

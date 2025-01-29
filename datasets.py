@@ -78,7 +78,10 @@ def get_loaders(dataset_name, batch_size=32, val_split=0.2, scaler_split=0.2, sa
             ])
             transform = transforms.Compose([transform, flatten_transform])
         train_dataset = datasets.CIFAR10(root='./data/cifar10', train=True, download=True, transform=transform)
-        test_dataset = datasets.CIFAR10(root='./data/cifar10', train=False, download=True, transform=transform)
+        test_dataset = datasets.CIFAR10(root='./data/cifar10', train=False, download=True, transform=transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616]),
+            ]))
         train_size = int((1 - scaler_split - sampler_split) * len(train_dataset))
         sampler_split = int(sampler_split * len(train_dataset))
         scaler_split = len(train_dataset) - train_size - sampler_split

@@ -53,8 +53,7 @@ def sample_from_dataloader(loader, num_points, std=0.1):
     dataset = torch.cat(all_inputs, dim=0)
     labels_tensor = torch.cat(all_labels, dim=0)
     print(dataset.shape)
-    n, d = dataset.shape
-    idx = torch.floor(torch.rand(num_points) * n).int()
+    idx = torch.floor(torch.rand(num_points) * dataset.shape[0]).int()
     dataset_resampled = dataset[idx,]
     print(dataset_resampled.min())
     return (renormalize_data(torch.clamp(dataset_resampled + torch.randn_like(dataset_resampled) * std, 0, 1)),
