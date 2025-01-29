@@ -112,9 +112,28 @@ def temperature_scale_network(dataset: str, network_type: str):
     torch.save(scaled_model.state_dict(), f'../rob/scaled/{name}/best.pth')
 
 
-def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_temp: int = 1):
-    preds = model(data.cuda())
+def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_temp: int = 1, labels: Tensor = torch.Tensor([])):
+    batch_size = 16186
+    num_batches = data.size(0) // batch_size + int(data.size(0) % batch_size != 0)
+    preds = []
+    data.requires_grad = False
 
+    with torch.no_grad():
+        for i in range(num_batches):
+            start_idx = i * batch_size
+            end_idx = min((i + 1) * batch_size, data.size(0))
+            batch_points = data[start_idx:end_idx].cuda()  # Get the batch
+
+            # Forward pass
+            print(f"predicting batch {i}")
+            batch_preds = model(batch_points)
+
+            # Move the outputs back to the CPU if you're using a GPU
+            preds.append(batch_preds.cpu())
+            del batch_points, batch_preds
+            torch.cuda.empty_cache()
+        # Concatenate all the outputs into a single tensor
+    preds = torch.cat(preds, dim=0)
     match method:
         case "pgd":
             rob_pgd = Quantitative_PGD(model, eps=wandb.config.PGD_EPS, alpha=wandb.config.PGD_ALPHA,
@@ -132,15 +151,16 @@ def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_
             raise "unknown robustness oracle"
     print("Robustness done")
     confs = get_confidences(preds)
-    scaled_confs = get_confidences(preds / scaling_temp.cuda())
+    scaled_confs = get_confidences(preds / scaling_temp.cpu())
     table = wandb.Table(
         columns=[f"{method}_robustness_steps", f"{method}_robustness_distances", "confidence", "scaled_confidence",
-                 "class"])
+                 "pred_class","true_class"])
     df = pd.DataFrame({f"{method}_robustness_steps": steps.tolist(),
                        f"{method}_robustness_distances": distances.tolist(),
                        "confidence": confs.tolist(),
                        "scaled_confidence": scaled_confs.tolist(),
-                       "class": classes.tolist()})
+                       "pred_class": classes.tolist(),
+                       "true class": labels.tolist()})
     # Save the DataFrame to CSV locally
 
     df.to_csv(f"../results/sampling_{name}.csv", index=False)
