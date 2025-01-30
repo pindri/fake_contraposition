@@ -3,8 +3,8 @@ import torch
 from mair import Standard
 from matplotlib import pyplot as plt
 
-from datasets import get_loaders
-from models import FFNetwork
+from pag_robustness.datasets import get_loaders
+from pag_robustness.models import FFNetwork
 from pag_robustness.robustness_oracles import Quantitative_PGD
 
 train_loader, val_loader, test_loader = get_loaders('mnist', val_split=0.0, batch_size=20048, flatten=True)

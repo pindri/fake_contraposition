@@ -4,7 +4,7 @@ import tempfile
 import torch
 from maraboupy import Marabou
 
-from nnet_saver import nnet_exporter
+from pag_robustness.nnet_saver import nnet_exporter
 
 
 def parallel_worker(model, nnet_file, point, max_radius, step_num):

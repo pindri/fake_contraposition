@@ -1,5 +1,3 @@
-import warnings
-
 import mair
 import numpy as np
 import pandas as pd
@@ -8,10 +6,10 @@ import yaml
 import wandb
 from mair import AT, Standard
 
-from datasets import get_loaders
+from pag_robustness.datasets import get_loaders
 from mnist_scratch import sample_from_dataloader, get_classes, get_confidences
-from models import FFNetwork
-from pag_robustness.robustness_oracles.Quantitative_Marabou import quantitative_Marabou
+from pag_robustness.models import FFNetwork
+from pag_robustness.robustness_oracles.Quantitative_PDG import Quantitative_PGD
 from pag_robustness.sample_complexities import complexity
 from pag_robustness.temperature_scaled_network import TemperatureScaledNetwork
 
@@ -40,7 +38,7 @@ def training():
     trainer.record_rob(train_loader, val_loader, eps=wandb.config.EPS, alpha=wandb.config.ALPHA,
                        steps=wandb.config.STEPS, std=wandb.config.STD)
     trainer.setup(optimizer=f"SGD(lr={wandb.config.lr}, momentum={wandb.config.momentum})",
-                  scheduler="Step(milestones=[100, 150], gamma=0.1)",
+                  scheduler="Step(milestones=[100, 150], gamma=0.1 )",
                   scheduler_type="Epoch",
                   minimizer=None,  # or "AWP(rho=5e-3)",
                   n_epochs=wandb.config.n_epochs,
@@ -84,7 +82,10 @@ def scaling():
 
     # print(normal_model.state_dict())
     scaled_model = TemperatureScaledNetwork(robust_model)
-    scaled_model.set_temperature(scaler_loader)
+    if wandb.config.optimization_function == "AT":
+        scaled_model.set_temperature(scaler_loader, reg=0.2)
+    else:
+        scaled_model.set_temperature(scaler_loader, reg=0.05)
     torch.save(scaled_model.state_dict(), f"{wandb.run.dir}.h5")
     torch.save(scaled_model.state_dict(),
                f"../models/scaled/{wandb.config.optimization_function}_{wandb.config.seed}.torch")
@@ -115,26 +116,79 @@ def sampling():
     validation_sample = sample_from_dataloader(loader=sampler_loader, num_points=num_points, std=wandb.config.SAMPLING_GN_STD)
     preds = robust_model(validation_sample)
     print("Sampling done")
-    # rob_pgd =
+    rob_pgd = Quantitative_PGD(robust_model, eps=wandb.config.PGD_EPS, alpha=wandb.config.PGD_ALPHA, steps=wandb.config.PGD_STEPS, random_start=False)
 
-    # classes = get_classes(robust_model(validation_sample))
-    robs = quantitative_Marabou(robust_model, points=validation_sample, step_num=wandb.config.MARABOU_STEPS,
-                                   max_radius=wandb.config.MARABOU_MAX_RADIUS)
+    classes = get_classes(robust_model(validation_sample))
+    robs = rob_pgd.forward(validation_sample, classes)
     print("Robustness done")
     confs = get_confidences(preds)
     scaled_confs = get_confidences(preds/scaled_model.temperature)
-    classes = get_classes(preds)
+
     table = wandb.Table(columns=["PGD_robustness", "confidence", "scaled_confidence", "class"])
     df = pd.DataFrame({"PGD_robustness": robs.tolist(),
                        "confidence": confs.tolist(),
                        "scaled_confidence": scaled_confs.tolist(),
                        "class": classes.tolist()})
     # Save the DataFrame to CSV locally
-    df.to_csv(f"../results/marabou_{wandb.config.optimization_function}_{wandb.config.seed}.csv", index=False)
+    df.to_csv(f"../results/{wandb.config.optimization_function}_{wandb.config.seed}.csv", index=False)
     # Add data points to the table
     for i in range(num_points):
         table.add_data(robs[i], confs[i], scaled_confs[i], classes[i])
     wandb.log({"sampling_table": table})
+    # wandb.log({"scatter_plot": wandb.plot.scatter(table, "x", "y", title="Scatter Plot Example")})
+
+def testing():
+    wandb.init(entity="peter-blohm-tu-wien", project="pag_mnist_test")
+    np.random.seed(wandb.config.seed)
+    torch.random.manual_seed(wandb.config.seed)
+
+    dim_input, dim_output, _, _, _, test_loader = (
+        get_loaders('mnist', scaler_split=wandb.config.scaler_split, sampler_split=wandb.config.sampler_split,
+                    batch_size=wandb.config.batch_size, flatten=True))
+
+    normal_model = FFNetwork(dim_input, dim_output, layer_sizes=wandb.config.layer_sizes)
+    robust_model = mair.RobModel(normal_model, n_classes=10)
+    robust_model.load_state_dict(torch.load(f"../models/{wandb.config.optimization_function}_{wandb.config.seed}.torch",
+                                            weights_only=False))
+    scaled_model = TemperatureScaledNetwork(robust_model)
+    scaled_model.load_state_dict(
+        torch.load(f"../models/scaled/{wandb.config.optimization_function}_{wandb.config.seed}.torch",
+                   weights_only=False))
+    num_points = complexity(wandb.config.epsilon * (1-wandb.config.kappa_max_quantile), wandb.config.delta)
+    all_inputs = []
+    all_labels = []
+
+    # Iterate through the DataLoader
+    for inputs, labels in test_loader:
+        all_inputs.append(inputs)
+        all_labels.append(labels)
+    all_labels = torch.cat(all_labels, dim=0)
+    all_inputs = torch.cat(all_inputs, dim=0)
+    num_points = len(all_inputs)
+
+    # validation_sample = sample_from_dataloader(loader=sampler_loader, num_points=num_points, std=wandb.config.SAMPLING_GN_STD)
+    preds = robust_model(all_inputs)
+    print("Sampling done")
+    rob_pgd = Quantitative_PGD(robust_model, eps=wandb.config.PGD_EPS, alpha=wandb.config.PGD_ALPHA, steps=wandb.config.PGD_STEPS, random_start=False)
+
+    classes = get_classes(robust_model(all_inputs))
+    robs = rob_pgd.forward(all_inputs, classes)
+    print("Robustness done")
+    confs = get_confidences(preds)
+    scaled_confs = get_confidences(preds/scaled_model.temperature)
+
+    table = wandb.Table(columns=["PGD_robustness", "confidence", "scaled_confidence", "class"])
+    df = pd.DataFrame({"PGD_robustness": robs.tolist(),
+                       "confidence": confs.tolist(),
+                       "scaled_confidence": scaled_confs.tolist(),
+                       "class": classes.tolist()})
+    # Save the DataFrame to CSV locally
+    df.to_csv(f"../results/test_{wandb.config.optimization_function}_{wandb.config.seed}.csv", index=False)
+    # Add data points to the table
+    for i in range(num_points):
+        table.add_data(robs[i], confs[i], scaled_confs[i], classes[i])
+    wandb.log({"sampling_table": table})
+    print(f"accuracy: {(all_labels == classes).sum()}")
     # wandb.log({"scatter_plot": wandb.plot.scatter(table, "x", "y", title="Scatter Plot Example")})
 
 
@@ -144,5 +198,11 @@ if __name__ == "__main__":
         sweep_configuration = yaml.safe_load(stream)
     #
     # wandb.run(entity="peter-blohm-tu-wien", project="pag_mnist_test-orphans", sweep=sweep_configuration)
-    sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_mnist_sampling_marabou", sweep=sweep_configuration)
-    wandb.agent(sweep_id, function=sampling)
+    # sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_mnist_train_norml", sweep=sweep_configuration)
+    # wandb.agent(sweep_id, function=training)
+    # sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_mnist_scale_norml", sweep=sweep_configuration)
+    # wandb.agent(sweep_id, function=scaling)
+    # sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_mnist_sample_train_norml", sweep=sweep_configuration)
+    # wandb.agent(sweep_id, function=sampling)
+    sweep_id = wandb.sweep(entity="peter-blohm-tu-wien", project="pag_mnist_test_norml", sweep=sweep_configuration)
+    wandb.agent(sweep_id, function=testing)

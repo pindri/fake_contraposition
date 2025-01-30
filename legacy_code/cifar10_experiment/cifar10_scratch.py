@@ -5,8 +5,7 @@ import torch
 from mair import AT, Standard
 from matplotlib import pyplot as plt, gridspec
 
-from datasets import get_loaders
-from models import FFNetwork
+from pag_robustness.datasets import get_loaders
 from pag_robustness.robustness_oracles.Quantitative_PDG import Quantitative_PGD
 
 
