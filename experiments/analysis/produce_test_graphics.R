@@ -1,6 +1,6 @@
 
-result_folder <- "/home/peter/tu/papers/verification/fake_contraposition/results/remote/"
-sample_files<-list.files(path = result_folder, pattern = "sampling_m.*csv")
+result_folder <- "/home/peter/tu/papers/verification/fake_contraposition/results/cifar/"
+sample_files<-list.files(path = result_folder, pattern = "sampling_c.*0\\..*3125_last.*csv")
 
 library(ggplot2)
 library(ggExtra)
@@ -28,6 +28,11 @@ find_test_file <- function(folder,filename){
     paste0(folder,list.files(path=folder,pattern=paste0(".*test_",shortname))[1])
 }
 
+find_validation_file <- function(folder,filename){
+    shortname <- substr(filename,10+nchar(folder),1000)
+    paste0(folder,list.files(path=folder,pattern=paste0(".*validation_set_",shortname))[1])
+}
+
 base_theme <-
     theme_minimal() +
         theme(legend.position = "bottom",
@@ -50,7 +55,10 @@ highcontrast <- color("high contrast")
 
 rob_preprocessing <- function(tibble){
     tibble %>%
-        mutate(class = as.factor(class)) %>%
+        mutate(#class = as.factor(class),
+               pgd_robustness_steps = pgd_robustness_steps,
+               pgd_robustness_distances = round(pgd_robustness_distances,digits = 5)
+               ) %>%
         arrange(desc(confidence)) %>%
         mutate(min_robustness_steps = cummin(pgd_robustness_steps),
                min_robustness_distances = cummin(pgd_robustness_distances)) %>%
@@ -61,7 +69,7 @@ rob_preprocessing <- function(tibble){
 extract_name <- function(filename) {
   filename <- gsub("\\.csv$", "", filename)
   parts <- unlist(strsplit(filename, "_"))
-  extracted <- parts[6:8]
+  extracted <- parts[5:7]
   return(extracted)
 }
 result_table <- list()
@@ -70,13 +78,15 @@ result_table <- list()
 i <- 0
 for (file in paste0(result_folder,sample_files)){
 
-    print("hello")
+    # print(nrow(sampling_data))
+    print(file)
     sampling_data <- read.csv(file) %>% rob_preprocessing()
     test_data <- find_test_file(result_folder, file) %>% read.csv() %>% rob_preprocessing()
+    valid_data <- find_validation_file(result_folder, file) %>% read.csv() %>% rob_preprocessing()
     # svg(paste0(seed,"test.svg"), width=13/3*2,height=10/3*2)
     max_conf <- (sampling_data %>% arrange(confidence) %>%
-        .[chernoff_bound_index(685045,0.01,0.005),])$confidence
-    index <- chernoff_bound_index(685045,0.01,0.005)
+        .[chernoff_bound_index(nrow(sampling_data),0.01,0.005),])$confidence
+    index <- chernoff_bound_index(nrow(sampling_data),0.01,0.005)
 
     # densityplot_rob <- ggplot(test_data,
     #                           aes(y = pgd_robustness_distances, fill = highcontrast(3)[1], color = highcontrast(3)[1])) +
@@ -88,6 +98,11 @@ for (file in paste0(result_folder,sample_files)){
     densityplot_rob <- ggplot(test_data, aes(x = sampling_ecdf(confidence))) +
         geom_density(alpha = 0.3, fill = highcontrast(3)[1],color = highcontrast(3)[1]) + theme_void() +
         theme(legend.position = "none")
+
+    opt <- extract_name(file)[1]
+    opt <- ifelse(opt!="AT",paste(opt,"Training"),paste0("TRADES Training"))
+
+
     scatterplot_rob <- ggplot() +
         geom_line(data = sampling_data %>%
         mutate(min_robustness_steps =
@@ -97,10 +112,10 @@ for (file in paste0(result_folder,sample_files)){
               aes(x=sampling_ecdf(confidence),y=min_robustness_distances, color = "Lower Bound"),
               linewidth=2) +
         geom_point(data =test_data, aes(x = sampling_ecdf(confidence), y = pgd_robustness_distances, color = "Test Data"), alpha =.2) +
-        labs(title = paste("Lower Bound on Test Data"),
-             x = "Confidence Score (relative rank)",
-             y = "Adversarial Robustness (L inf distance to PGD Exampkle)") +
-        ylim(c(0,1.5)) +
+        labs(title = paste("CIFAR10 Lower Bound vs Test Data with",opt),
+             x = "Confidence Score (mapped to ECDF)",
+             y = "Adversarial Robustness (L inf distance to PGD Example)") +
+        ylim(c(0, 0.25)) +
         base_theme +
     geom_vline(aes(xintercept = sampling_ecdf(max_conf), color = "Max Confidence"),  linetype=2, linewidth=1.5)+
     scale_color_manual(values = c("Lower Bound" = highcontrast(3)[3],
@@ -113,16 +128,14 @@ for (file in paste0(result_folder,sample_files)){
 
     combo_plot <- list(densityplot_rob,scatterplot_rob) |>
         wrap_plots(nrow = 2,heights=c(1,5))
-    ggsave(filename=paste0("plots/rank_",file,".svg"),
+    ggsave(filename=paste0("plots/cifar/please",file,".svg"),
            plot=scatterplot_rob,
            width=13/3*2,
            height=10/3*2)
 
-
-
     mapping <- sampling_data %>%
         group_by(min_robustness_distances) %>%
-        arrange(pgd_robustness_distances,desc(confidence)) %>%
+        arrange(min_robustness_distances,desc(confidence)) %>%
         filter(row_number()==1) %>% #pick the lowest robustness value and among these the highest confidence
         filter(confidence < max_conf) # this line is tricky, not doing this will allow the consideration of too small confidence ps
 
@@ -135,6 +148,12 @@ for (file in paste0(result_folder,sample_files)){
     }
 
     valid_test_preds <- test_data %>% filter(confidence < max_conf) %>%
+        mutate(distance_lower_bound =
+                   mapping$pgd_robustness_distances[findInterval(confidence,mapping$confidence)+1],
+               violates_bound = pgd_robustness_distances < distance_lower_bound
+               )
+
+     valid_sampling_preds <- sampling_data %>% filter(confidence < max_conf) %>%
         mutate(distance_lower_bound =
                    mapping$pgd_robustness_distances[findInterval(confidence,mapping$confidence)+1],
                violates_bound = pgd_robustness_distances < distance_lower_bound
@@ -153,7 +172,7 @@ for (file in paste0(result_folder,sample_files)){
 
 
     i <- i+1
-    result_table[[i]]<- c(extract_name(file),nrow(mapping), nrow(valid_test_preds), sum(valid_test_preds$violates_bound,na.rm=T),
+    result_table[[i]]<- c(extract_name(file),nrow(mapping), nrow(valid_test_preds), sum(valid_test_preds$violates_bound ,na.rm=T),
       counter_mass_data %>% reframe(counter_examples/mass) %>% max() %>% max(0))
     # dev.off()
 }
@@ -163,7 +182,7 @@ results_df <- do.call(rbind, result_table)
 colnames(results_df) <- c("opt_func", "seed", "rob_beta", "map_size", "valid_preds", "total_counterexamples", "relative_error")
 results_df <- as.data.frame(results_df)
 
-write.csv(results_df, "summary_mnist_pgd.csv", row.names = FALSE)
+write.csv(results_df, "summary_cifar_pgd_please.csv", row.names = FALSE)
 #======= functions to check the estimated mass of counterexamples per sample guarantee =====
 #
 # result_data_preprocessing <- function(x){
