@@ -1,13 +1,13 @@
 import gc
 import os
+import time
 
 import torch
 if not torch.cuda.is_available():
-    raise Exception("what the heeeell")
+    raise Exception("cuda is not available")
 import mair
 import numpy as np
 import pandas as pd
-import yaml
 from torch import Tensor
 
 import wandb
@@ -38,7 +38,7 @@ def get_base_model(dim_input: int, dim_output: int, network_type: str) -> RobMod
 
 
 def setup_and_get_data(dataset, network_type) -> (str, RobModel, dict):
-    wandb.init(entity="peter-blohm-tu-wien", project=f"pag_experiment_{dataset}_{network_type}")
+    wandb.init()
     name = f'{dataset}_{network_type}_{wandb.config.optimization_function}_{wandb.config.seed}_{wandb.config.robust_beta}'
     np.random.seed(wandb.config.seed)
     torch.random.manual_seed(wandb.config.seed)
@@ -98,8 +98,6 @@ def train_network(dataset: str, network_type: str):
 
 
 def temperature_scale_network(dataset: str, network_type: str):
-    if not torch.cuda.is_available():
-        raise Exception("what the heeeell")
     name, robust_model, loaders = setup_and_get_data(dataset, network_type)
     print(name)
     robust_model.load_state_dict(torch.load(f'../rob/{name}/best.pth', weights_only=False, map_location="cpu")["rmodel"])
@@ -113,6 +111,7 @@ def temperature_scale_network(dataset: str, network_type: str):
 
 
 def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_temp: int = 1, labels: Tensor = None):
+    start_time = time.time()
     batch_size = 16186
     num_batches = data.size(0) // batch_size + int(data.size(0) % batch_size != 0)
     preds = []
@@ -160,7 +159,8 @@ def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_
                        "confidence": confs.tolist(),
                        "scaled_confidence": scaled_confs.tolist(),
                        "pred_class": classes.tolist(),
-                       "true class": labels.tolist()})
+                       "true class": labels.tolist(),
+                       "runtime": time.time() - start_time})
     # Save the DataFrame to CSV locally
 
     df.to_csv(f"../results/sampling_{name}.csv", index=False)
@@ -169,7 +169,6 @@ def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_
     # for i in range(len(data)):
     #     table.add_data(steps[i], distances[i], confs[i], scaled_confs[i], classes[i])
     # wandb.log({"sampling_table": table})
-    del table
     return classes
 
 
