@@ -1,7 +1,7 @@
 method: grid
 parameters:
   robust_beta:
-    values: [0.001, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2]
+    values: [0.001, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 100]
   optimization_function:
     values: [AT, Standard]
   seed:
@@ -19,7 +19,7 @@ parameters:
   weight_decay:
     values: [5e-4]
   n_epochs:
-    values: [2]
+    values: [20]
   batch_size:
     values: [256]
   dataset:
@@ -45,15 +45,15 @@ parameters:
   PGD_EPS:
     values: [1]
   PGD_ALPHA:
-    values: [0.00392157] # 0.5/256
+    values: [0.001953125] # 0.5/256
   PGD_STEPS:
     values: [512]
   SAMPLING_GN_STD:
     values: [0.03125] # 8/256
 
   MARABOU_MAX_RADIUS:
-    values: [100]
+    values: [0.25]
   MARABOU_STEPS:
-    values: [6]
+    values: [4]
 
 
