@@ -14,16 +14,17 @@ def parallel_worker(model, nnet_file, point, max_radius, step_num):
 
     for _ in range(step_num):
         # Verify l_inf ball using the pre-exported .nnet file
-        if verify_l_inf_ball(model, nnet_file, point, radius + increment) == "unsat":
+        code= verify_l_inf_ball(model, nnet_file, point, radius + increment)
+        if code == "unsat":
             radius += increment
         increment /= 2
-
-    return radius * 256
+        # print(increment)
+    # print(radius)
+    return radius
 
 
 def quantitative_Marabou(model, step_num, max_radius, points):
     radii = []
-
     # Export the model to a single temporary .nnet file outside of the worker
     with tempfile.NamedTemporaryFile(suffix=".nnet") as tmpfile:
         nnet_exporter(model, tmpfile.name, points)
@@ -46,7 +47,7 @@ def quantitative_Marabou(model, step_num, max_radius, points):
     return torch.tensor(radii)
 
 
-def verify_l_inf_ball(model, nnet_file, point, max_radius):
+def verify_l_inf_ball(model, nnet_file, point, max_radius) -> (str, float):
     """
     Verifies that the class label of a neural network does not change within an L_inf ball
     around each point in the input set.
@@ -60,6 +61,8 @@ def verify_l_inf_ball(model, nnet_file, point, max_radius):
     Returns:
     - results: A dictionary where the key is the point index, and the value is the verification result.
     """
+
+    # print("nro")
     network = Marabou.read_nnet(nnet_file)
 
     # Set the input bounds to define the L_inf ball around the point
@@ -71,10 +74,10 @@ def verify_l_inf_ball(model, nnet_file, point, max_radius):
         upper_bound = point[i].item() + max_radius
         # print(input_vars[i])
         # print(network.getInputMinimum(input_vars[i]))
-        network.setLowerBound(input_vars[i], max(lower_bound, 0))#network.getInputMinimum(input_vars[i])))
-        network.setUpperBound(input_vars[i], min(upper_bound, 1))#network.getInputMaximum(input_vars[i])))
+        network.setLowerBound(input_vars[i], max(lower_bound, -0.4242))#network.getInputMinimum(input_vars[i])))
+        network.setUpperBound(input_vars[i], min(upper_bound, 2.8215))#network.getInputMaximum(input_vars[i])))
         # network.addInequality([input_vars[i]], [-1], -lower_bound)
-        network.ad
+        # network.ad
     # Get the current class label from the network by feeding the input point
     output_class = model(point.unsqueeze(0)).argmax().item()
     # print(f"output class: {output_class}")
@@ -92,4 +95,7 @@ def verify_l_inf_ball(model, nnet_file, point, max_radius):
     # Perform the verification
     options = Marabou.createOptions(verbosity=0, timeoutInSeconds=60, numWorkers=8)
     code, vals, stats = network.solve(verbose=False, options=options)
-    return code
+    # print("test")
+    # print((torch.tensor(list(vals[i] for i in network.inputVars[0][0])) - point).abs().max())
+    # print(code)
+    return code #, (torch.tensor(list(vals[i] for i in network.inputVars[0][0])) - point).abs().max()
