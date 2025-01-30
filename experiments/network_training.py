@@ -234,7 +234,7 @@ def testing(dataset: str, network_type: str, method: str):
     print(all_inputs.min(), all_inputs.max())
     classes = attack_model(f"validation_set_{name}_{method}_std{wandb.config.SAMPLING_GN_STD}_best", robust_model,
                            all_inputs.clone(), method, scaled_model.temperature, all_labels.clone())
-    print(f"accuracy: {(all_labels.cuda() == classes.cuda()).mean()}")
+    print(f"accuracy: {(all_labels.cuda() == classes.cuda()).sum()}")
 
     all_inputs = []
     all_labels = []
