@@ -151,7 +151,7 @@ def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_
             classes.requires_grad = False
             steps, distances = rob_pgd.forward(data,classes)
         case "marabou":
-            distances = quantitative_Marabou(model, points=data,
+            distances = quantitative_Marabou(model.cpu(), points=data,
                                              step_num=wandb.config.MARABOU_STEPS,
                                              max_radius=wandb.config.MARABOU_MAX_RADIUS)
             steps = torch.zeros_like(distances)
