@@ -1,13 +1,13 @@
 
-result_folder <- "/home/peter/tu/papers/verification/fake_contraposition/results/cifar/"
-sample_files<-list.files(path = result_folder, pattern = "sampling_c.*0\\..*3125_last.*csv")
+result_folder <- "/home/peter/tu/papers/verification/fake_contraposition/results/mnist_pgd/"
+sample_files<-list.files(path = result_folder, pattern = "sampling_m.*best.*csv")
 
 library(ggplot2)
 library(ggExtra)
 library(patchwork)
 library(dplyr)
 library(khroma)
-options(repr.plot.width=10, repr.plot.height=7)
+options(repr.plot.width=10/1.2, repr.plot.height=7/1.2)
 
 chernoff_bound_index <-  function(n,p,delta){
     ceiling(n*(1-p)-sqrt(2*n*(1-p)*log(2/delta)))
@@ -50,7 +50,8 @@ base_theme <-
               strip.placement = "outside",
               # Keep the panel border
               # panel.border = element_rect(color = "gray70", fill = NA, size=0.5),
-              axis.ticks = element_line()) # Keep tick marks
+              axis.ticks = element_line(),
+              legend.title=element_blank()) # Keep tick marks
 highcontrast <- color("high contrast")
 
 rob_preprocessing <- function(tibble){
@@ -69,7 +70,7 @@ rob_preprocessing <- function(tibble){
 extract_name <- function(filename) {
   filename <- gsub("\\.csv$", "", filename)
   parts <- unlist(strsplit(filename, "_"))
-  extracted <- parts[5:7]
+  extracted <- parts[7:9]
   return(extracted)
 }
 result_table <- list()
@@ -82,7 +83,7 @@ for (file in paste0(result_folder,sample_files)){
     print(file)
     sampling_data <- read.csv(file) %>% rob_preprocessing()
     test_data <- find_test_file(result_folder, file) %>% read.csv() %>% rob_preprocessing()
-    valid_data <- find_validation_file(result_folder, file) %>% read.csv() %>% rob_preprocessing()
+    # valid_data <- find_validation_file(result_folder, file) %>% read.csv() %>% rob_preprocessing()
     # svg(paste0(seed,"test.svg"), width=13/3*2,height=10/3*2)
     max_conf <- (sampling_data %>% arrange(confidence) %>%
         .[chernoff_bound_index(nrow(sampling_data),0.01,0.005),])$confidence
@@ -99,7 +100,7 @@ for (file in paste0(result_folder,sample_files)){
         geom_density(alpha = 0.3, fill = highcontrast(3)[1],color = highcontrast(3)[1]) + theme_void() +
         theme(legend.position = "none")
 
-    opt <- extract_name(file)[1]
+    opt <- extract_name(file)[2]
     opt <- ifelse(opt!="AT",paste(opt,"Training"),paste0("TRADES Training"))
 
 
@@ -113,25 +114,27 @@ for (file in paste0(result_folder,sample_files)){
               linewidth=2) +
         geom_point(data =test_data, aes(x = sampling_ecdf(confidence), y = pgd_robustness_distances, color = "Test Data"), alpha =.2) +
         labs(title = paste("CIFAR10 Lower Bound vs Test Data with",opt),
-             x = "Confidence Score (mapped to ECDF)",
-             y = "Adversarial Robustness (L inf distance to PGD Example)") +
-        ylim(c(0, 0.25)) +
+             x = "Confidence Score (quantiles)",
+             y = "Formal Robustness (L inf distance)") +
+        ylim(c(0, .25)) +
         base_theme +
-    geom_vline(aes(xintercept = sampling_ecdf(max_conf), color = "Max Confidence"),  linetype=2, linewidth=1.5)+
-    scale_color_manual(values = c("Lower Bound" = highcontrast(3)[3],
-                                    "Test Data" = highcontrast(3)[1],
-                                    "Max Confidence" = highcontrast(3)[2]),
-                       name = "Legend",
-                       breaks = c("Lower Bound", "Test Data", "Max Confidence"),
-                       labels = c("Lower Bound", "Test Data", "Max Confidence")) +
-    theme(legend.position = "bottom") # Adjust legend position as needed
+        geom_vline(aes(xintercept = sampling_ecdf(max_conf), color = "Max Confidence"),  linetype=2, linewidth=1.5)+
+        scale_color_manual(values = c("Lower Bound" = highcontrast(3)[3],
+                                        "Test Data" = highcontrast(3)[1],
+                                        "Max Confidence" = highcontrast(3)[2]),
+                           name = "Legend",
+                           breaks = c("Lower Bound", "Test Data", "Max Confidence"),
+                           labels = c("Lower Bound", "Test Data", "Max Confidence")) +
+        theme(legend.position = "bottom") +# Adjust legend position as needed
+        guides(color = guide_legend(override.aes = list(alpha = 1)))
 
     combo_plot <- list(densityplot_rob,scatterplot_rob) |>
         wrap_plots(nrow = 2,heights=c(1,5))
-    ggsave(filename=paste0("plots/cifar/please",file,".svg"),
-           plot=scatterplot_rob,
-           width=13/3*2,
-           height=10/3*2)
+    shortname <- substr(file,10+nchar(result_folder),1000)
+    # ggsave(filename=paste0("plots/new/cifar/",shortname,".svg"),
+    #        plot=scatterplot_rob,
+    #        width=12/3*2,
+    #        height=10/1.1/3*2)
 
     mapping <- sampling_data %>%
         group_by(min_robustness_distances) %>%
@@ -149,13 +152,13 @@ for (file in paste0(result_folder,sample_files)){
 
     valid_test_preds <- test_data %>% filter(confidence < max_conf) %>%
         mutate(distance_lower_bound =
-                   mapping$pgd_robustness_distances[findInterval(confidence,mapping$confidence)+1],
+                   mapping$pgd_robustness_distances[findInterval(confidence,mapping$confidence,left.open=T)+1],
                violates_bound = pgd_robustness_distances < distance_lower_bound
                )
 
      valid_sampling_preds <- sampling_data %>% filter(confidence < max_conf) %>%
         mutate(distance_lower_bound =
-                   mapping$pgd_robustness_distances[findInterval(confidence,mapping$confidence)+1],
+                   mapping$pgd_robustness_distances[findInterval(confidence,mapping$confidence,left.open=T)+1],
                violates_bound = pgd_robustness_distances < distance_lower_bound
                )
 
@@ -172,17 +175,23 @@ for (file in paste0(result_folder,sample_files)){
 
 
     i <- i+1
-    result_table[[i]]<- c(extract_name(file),nrow(mapping), nrow(valid_test_preds), sum(valid_test_preds$violates_bound ,na.rm=T),
-      counter_mass_data %>% reframe(counter_examples/mass) %>% max() %>% max(0))
+    result_table[[i]]<- c(extract_name(file),nrow(mapping),
+                          nrow(valid_test_preds),
+                          sum(valid_test_preds$violates_bound, na.rm=T),
+                          counter_mass_data %>% reframe(counter_examples/mass) %>% max() %>% max(0),
+                          mean(sampling_data$runtime),
+                          mean(valid_test_preds$pred_class == valid_test_preds$true.class)
+
+    )
     # dev.off()
 }
 results_df <- do.call(rbind, result_table)
 
 # Convert to data frame with meaningful column names
-colnames(results_df) <- c("opt_func", "seed", "rob_beta", "map_size", "valid_preds", "total_counterexamples", "relative_error")
+colnames(results_df) <- c("opt_func", "seed", "rob_beta", "map_size", "valid_preds", "total_counterexamples", "relative_error", "runtime", "accuracy")
 results_df <- as.data.frame(results_df)
 
-write.csv(results_df, "summary_cifar_pgd_please.csv", row.names = FALSE)
+write.csv(results_df, "summary/mnist_pgd.csv", row.names = FALSE)
 #======= functions to check the estimated mass of counterexamples per sample guarantee =====
 #
 # result_data_preprocessing <- function(x){

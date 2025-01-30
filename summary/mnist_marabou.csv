@@ -1,0 +1,3 @@
+"opt_func","seed","rob_beta","map_size","valid_preds","total_counterexamples","relative_error","runtime","accuracy"
+"AT","666","2","5","9659","1","0.000136444262518761",NA,"NaN"
+"Standard","666","2","3","9585","0","0",NA,"NaN"
