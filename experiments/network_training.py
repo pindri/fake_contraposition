@@ -112,7 +112,7 @@ def temperature_scale_network(dataset: str, network_type: str):
     torch.save(scaled_model.state_dict(), f'../rob/scaled/{name}/best.pth')
 
 
-def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_temp: int = 1, labels: Tensor = torch.Tensor([])):
+def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_temp: int = 1, labels: Tensor = None):
     batch_size = 16186
     num_batches = data.size(0) // batch_size + int(data.size(0) % batch_size != 0)
     preds = []
@@ -140,7 +140,8 @@ def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_
                                        steps=wandb.config.PGD_STEPS, random_start=False, device="cuda:0")
 
             classes = get_classes(preds)
-            steps, distances = rob_pgd.forward(data, classes)
+            classes.requires_grad = False
+            steps, distances = rob_pgd.forward(data,classes)
         case "marabou":
             distances = quantitative_Marabou(model, points=data,
                                              step_num=wandb.config.MARABOU_STEPS,
@@ -152,9 +153,8 @@ def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_
     print("Robustness done")
     confs = get_confidences(preds)
     scaled_confs = get_confidences(preds / scaling_temp.cpu())
-    table = wandb.Table(
-        columns=[f"{method}_robustness_steps", f"{method}_robustness_distances", "confidence", "scaled_confidence",
-                 "pred_class","true_class"])
+    if labels is None:
+        labels = classes
     df = pd.DataFrame({f"{method}_robustness_steps": steps.tolist(),
                        f"{method}_robustness_distances": distances.tolist(),
                        "confidence": confs.tolist(),
@@ -184,8 +184,15 @@ def sampling(dataset: str, network_type: str, method: str):
     num_points = complexity(wandb.config.epsilon * (1 - wandb.config.kappa_max_quantile), wandb.config.delta)
     validation_sample = sample_from_dataloader(loader=loaders["val"], num_points=num_points,
                                                std=wandb.config.SAMPLING_GN_STD)
+    
+    for param in robust_model.parameters():
+        param.requires_grad = False
+    robust_model.eval()
+
+
+
     print("val", validation_sample[0].min(), validation_sample[0].max())
-    attack_model(f"{name}_{method}", robust_model, validation_sample[0], method, scaled_model.temperature)
+    attack_model(f"{name}_{method}_std{wandb.config.SAMPLING_GN_STD}_best", robust_model, validation_sample[0], method, scaled_model.temperature)
     del robust_model
     del scaled_model
     validation_sample[0].detach().cpu()
@@ -203,6 +210,22 @@ def testing(dataset: str, network_type: str, method: str):
     scaled_model = TemperatureScaledNetwork(robust_model)
     scaled_model.load_state_dict(torch.load(f'../rob/scaled/{name}/best.pth', weights_only=False, map_location="cpu"))
 
+    for param in robust_model.parameters():
+        param.requires_grad = False
+    robust_model.eval()
+
+    all_inputs = []
+    all_labels = []
+    for inputs, labels in loaders["val"]:
+        all_inputs.append(inputs)
+        all_labels.append(labels)
+    all_labels = torch.cat(all_labels, dim=0)
+    all_inputs = (torch.cat(all_inputs, dim=0))
+    print(all_inputs.min(), all_inputs.max())
+    classes = attack_model(f"validation_set_{name}_{method}_std{wandb.config.SAMPLING_GN_STD}_best", robust_model, all_inputs.clone(), method, scaled_model.temperature,all_labels.clone())
+    print(f"accuracy: {(all_labels.cuda() == classes.cuda()).mean()}")
+
+
     all_inputs = []
     all_labels = []
 
@@ -213,5 +236,5 @@ def testing(dataset: str, network_type: str, method: str):
     all_labels = torch.cat(all_labels, dim=0)
     all_inputs = (torch.cat(all_inputs, dim=0))
     print(all_inputs.min(), all_inputs.max())
-    classes = attack_model(f"test_{name}_{method}", robust_model, all_inputs, method, scaled_model.temperature,)
-    print(f"accuracy: {(all_labels.cuda() == classes).sum()}")
+    classes = attack_model(f"test_{name}_{method}_std{wandb.config.SAMPLING_GN_STD}_best", robust_model, all_inputs, method, scaled_model.temperature,all_labels)
+    print(f"accuracy: {(all_labels.cuda() == classes.cuda()).sum()}")
