@@ -40,8 +40,17 @@ def get_base_model(dim_input: int, dim_output: int, network_type: str) -> RobMod
 def setup_and_get_data(dataset, network_type) -> (str, RobModel, dict):
     wandb.init()
     name = f'{dataset}_{network_type}_{wandb.config.optimization_function}_{wandb.config.seed}_{wandb.config.robust_beta}'
+
+    #eliminate all sources of randomness
     np.random.seed(wandb.config.seed)
     torch.random.manual_seed(wandb.config.seed)
+    torch.manual_seed(wandb.config.seed)  # Set PyTorch seed for CPU operations
+    torch.cuda.manual_seed(wandb.config.seed)  # Set PyTorch seed for current GPU
+    torch.cuda.manual_seed_all(wandb.config.seed)  # Set seed for all GPUs if using multi-GPU
+    torch.backends.cudnn.deterministic = True  # Enforce deterministic algorithms
+    torch.backends.cudnn.benchmark = False  # Disable automatic optimizations that could introduce randomness
+
+
 
     dim_input, dim_output, train_loader, scaler_loader, val_loader, test_loader = (
         get_loaders(dataset, scaler_split=wandb.config.scaler_split, sampler_split=wandb.config.sampler_split,
