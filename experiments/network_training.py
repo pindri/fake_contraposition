@@ -159,9 +159,9 @@ def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_
             steps = torch.zeros_like(distances)
             classes = get_classes(preds)
         case "lirpa":
-            distances = quantitative_lirpa(model.cpu(), points=data,
-                                             step_num=wandb.config.MARABOU_STEPS,
-                                             max_radius=wandb.config.MARABOU_MAX_RADIUS)
+            distances = quantitative_lirpa(model, points=data,
+                                             step_num=3,
+                                             max_radius=wandb.config.MARABOU_MAX_RADIUS/10)
             steps = torch.zeros_like(distances)
             classes = get_classes(preds)
         case _:
@@ -198,7 +198,7 @@ def sampling(dataset: str, network_type: str, method: str):
     scaled_model = TemperatureScaledNetwork(robust_model)
     scaled_model.load_state_dict(torch.load(f'../rob/scaled/{name}/best.pth', weights_only=False, map_location="cpu"))
 
-    num_points = complexity(wandb.config.epsilon * (1 - wandb.config.kappa_max_quantile), wandb.config.delta)
+    num_points = complexity(wandb.config.epsilon * (1 - wandb.config.kappa_max_quantile), wandb.config.delta)//50
     validation_sample = sample_from_dataloader(loader=loaders["val"], num_points=num_points,
                                                std=wandb.config.SAMPLING_GN_STD)
 
