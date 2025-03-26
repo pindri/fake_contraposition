@@ -20,7 +20,7 @@ if __name__ == "__main__":
     # wandb.agent(sweep_id, function=lambda: temperature_scale_network("cifar10", "resnet18"))
 
     sweep_id = wandb.sweep(entity=WANDB_ENTITY, project="pag_cifar10_sampling_best", sweep=sweep_configuration)
-    wandb.agent(sweep_id, function=lambda: sampling("cifar10", "resnet18","pgd"))
+    wandb.agent(sweep_id, function=lambda: sampling("cifar10", "resnet18","lirpa"))
 
-    sweep_id = wandb.sweep(entity=WANDB_ENTITY, project="pag_cifar10_test_best", sweep=sweep_configuration)
-    wandb.agent(sweep_id, function=lambda: testing("cifar10", "resnet18","pgd"))
+    # sweep_id = wandb.sweep(entity=WANDB_ENTITY, project="pag_cifar10_test_best", sweep=sweep_configuration)
+    # wandb.agent(sweep_id, function=lambda: testing("cifar10", "resnet18","pgd"))

@@ -4,6 +4,8 @@ import time
 
 import torch
 
+from pag_robustness.robustness_oracles.Quantitative_LiRPA import quantitative_lirpa
+
 if not torch.cuda.is_available():
     raise Exception("cuda is not available")
 import mair
@@ -152,6 +154,12 @@ def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_
             steps, distances = rob_pgd.forward(data, classes)
         case "marabou":
             distances = quantitative_Marabou(model.cpu(), points=data,
+                                             step_num=wandb.config.MARABOU_STEPS,
+                                             max_radius=wandb.config.MARABOU_MAX_RADIUS)
+            steps = torch.zeros_like(distances)
+            classes = get_classes(preds)
+        case "lirpa":
+            distances = quantitative_lirpa(model.cpu(), points=data,
                                              step_num=wandb.config.MARABOU_STEPS,
                                              max_radius=wandb.config.MARABOU_MAX_RADIUS)
             steps = torch.zeros_like(distances)
