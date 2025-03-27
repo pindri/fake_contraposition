@@ -22,8 +22,7 @@ if __name__ == "__main__":
     # wandb.agent(sweep_id, function=lambda: sampling("mnist", "feed_forward","pgd"))
 
     sweep_id = wandb.sweep(entity=WANDB_ENTITY, project="pag_mnist_sampling_best", sweep=sweep_configuration)
-    wandb.agent(sweep_id, function=lambda: sampling("mnist", "feed_forward","lirpa"))
+    wandb.agent(sweep_id, function=lambda: sampling("mnist", "feed_forward","pgd"))
 
-
-    # sweep_id = wandb.sweep(entity=WANDB_ENTITY, project="pag_mnist_test_best", sweep=sweep_configuration)
-    # wandb.agent(sweep_id, function=lambda: testing("mnist", "feed_forward","pgd"))
+    sweep_id = wandb.sweep(entity=WANDB_ENTITY, project="pag_mnist_test_best", sweep=sweep_configuration)
+    wandb.agent(sweep_id, function=lambda: testing("mnist", "feed_forward","pgd"))

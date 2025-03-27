@@ -144,6 +144,8 @@ def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_
             torch.cuda.empty_cache()
         # Concatenate all the outputs into a single tensor
     preds = torch.cat(preds, dim=0)
+    confs = get_confidences(preds)
+    print(confs[1])
     match method:
         case "pgd":
             rob_pgd = Quantitative_PGD(model, eps=wandb.config.PGD_EPS, alpha=wandb.config.PGD_ALPHA,
@@ -160,8 +162,8 @@ def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_
             classes = get_classes(preds)
         case "lirpa":
             distances = quantitative_lirpa(model, points=data,
-                                             step_num=3,
-                                             max_radius=wandb.config.MARABOU_MAX_RADIUS/10)
+                                             step_num=wandb.config.MARABOU_STEPS,
+                                             max_radius=wandb.config.MARABOU_MAX_RADIUS)
             steps = torch.zeros_like(distances)
             classes = get_classes(preds)
         case _:
@@ -198,7 +200,7 @@ def sampling(dataset: str, network_type: str, method: str):
     scaled_model = TemperatureScaledNetwork(robust_model)
     scaled_model.load_state_dict(torch.load(f'../rob/scaled/{name}/best.pth', weights_only=False, map_location="cpu"))
 
-    num_points = complexity(wandb.config.epsilon * (1 - wandb.config.kappa_max_quantile), wandb.config.delta)//50
+    num_points = complexity(wandb.config.epsilon * (1 - wandb.config.kappa_max_quantile), wandb.config.delta)
     validation_sample = sample_from_dataloader(loader=loaders["val"], num_points=num_points,
                                                std=wandb.config.SAMPLING_GN_STD)
 
