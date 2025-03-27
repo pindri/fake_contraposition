@@ -1,0 +1,59 @@
+method: grid
+parameters:
+  robust_beta:
+    values: [0.1]
+  optimization_function:
+    values: [Standard]
+  seed:
+    values: [666]
+  temp_scaling_regularization:
+    values: [0.2]
+  scaler_split:
+    values: [0.04]
+  sampler_split:
+    values: [0.16]
+  lr:
+    values: [0.1]
+  momentum:
+    values: [0.9]
+  weight_decay:
+    values: [5e-4]
+  n_epochs:
+    values: [0]
+  batch_size:
+    values: [128]
+  dataset:
+    values: ["cifar10"]
+  EPS:
+    values: [0.05]
+  ALPHA:
+    values: [0.00625]
+  STEPS:
+    values: [10]
+  STD:
+    values: [0.1]
+  layer_sizes:
+    values: [[50, 10]]
+
+# ============ GUARANTEE PARAMS ===========
+  epsilon:
+    values: [0.05]
+  kappa_max_quantile:
+    values: [0.95]
+  delta:
+    values: [0.005]
+  PGD_EPS:
+    values: [0.5]
+  PGD_ALPHA:
+    values: [0.000390625] # 0.1/256
+  PGD_STEPS:
+    values: [500]
+  SAMPLING_GN_STD:
+    values: [0.03125] # 8/256
+
+  MARABOU_MAX_RADIUS:
+    values: [100]
+  MARABOU_STEPS:
+    values: [6]
+
+
