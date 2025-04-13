@@ -3,7 +3,7 @@ parameters:
   robust_beta:
     values: [2]
   optimization_function:
-    values: [AT]
+    values: [AT, Standard]
   seed:
     values: [666, 69, 42]
   temp_scaling_regularization:
@@ -13,7 +13,7 @@ parameters:
   sampler_split:
     values: [0.16]
   lr:
-    values: [0.00000000000000000001]
+    values: [0.1]
   momentum:
     values: [0.9]
   weight_decay:
