@@ -181,7 +181,8 @@ def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_
         case "lirpa":
             distances = quantitative_lirpa(model, points=data,
                                              step_num=wandb.config.MARABOU_STEPS,
-                                             max_radius=wandb.config.MARABOU_MAX_RADIUS)
+                                             max_radius=wandb.config.MARABOU_MAX_RADIUS,
+                                             classes = get_classes(preds))
             steps = torch.zeros_like(distances)
             classes = get_classes(preds)
         case _:
@@ -260,7 +261,7 @@ def testing(dataset: str, network_type: str, method: str):
     all_labels = torch.cat(all_labels, dim=0)
     all_inputs = (torch.cat(all_inputs, dim=0))
     print(all_inputs.min(), all_inputs.max())
-    classes = attack_model(f"validation_set_{name}_{method}_std{wandb.config.SAMPLING_GN_STD}_best_____check", robust_model,
+    classes = attack_model(f"validation_set_{name}_{method}_std{wandb.config.SAMPLING_GN_STD}_best", robust_model,
                            all_inputs.clone(), method, scaled_model.temperature, all_labels.clone())
     print(f"accuracy: {(all_labels.cuda() == classes.cuda()).sum()}")
 
@@ -274,6 +275,6 @@ def testing(dataset: str, network_type: str, method: str):
     all_labels = torch.cat(all_labels, dim=0)
     all_inputs = (torch.cat(all_inputs, dim=0))
     print(all_inputs.min(), all_inputs.max())
-    classes = attack_model(f"test_{name}_{method}_std{wandb.config.SAMPLING_GN_STD}_best_____check", robust_model, all_inputs,
+    classes = attack_model(f"test_{name}_{method}_std{wandb.config.SAMPLING_GN_STD}_best", robust_model, all_inputs,
                            method, scaled_model.temperature, all_labels)
     print(f"accuracy: {(all_labels.cuda() == classes.cuda()).sum()}")
