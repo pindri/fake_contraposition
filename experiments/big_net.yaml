@@ -13,15 +13,15 @@ parameters:
   sampler_split:
     values: [0.16]
   lr:
-    values: [0.1]
+    values: [0.0000001]
   momentum:
-    values: [0.9]
+    values: [0.000009]
   weight_decay:
     values: [5e-4]
   n_epochs:
-    values: [0]
+    values: [1]
   batch_size:
-    values: [128]
+    values: [2048]
   dataset:
     values: ["cifar10"]
   EPS:
@@ -37,9 +37,9 @@ parameters:
 
 # ============ GUARANTEE PARAMS ===========
   epsilon:
-    values: [0.05]
+    values: [0.01]
   kappa_max_quantile:
-    values: [0.95]
+    values: [0.99]
   delta:
     values: [0.005]
   PGD_EPS:

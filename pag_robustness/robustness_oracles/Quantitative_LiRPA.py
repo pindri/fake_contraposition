@@ -38,10 +38,11 @@ def find_robustness_radius(model, point, max_radius=0.1, step_num=5):
         mid = (low + high) / 2
         perturbation = PerturbationLpNorm(norm=np.inf, eps=mid)
         bounded_input = BoundedTensor(point.unsqueeze(0), perturbation)
-        print("test_11")
+        # print("test_11")
         output_bounds = model.compute_bounds(x=(bounded_input,), method="backward")
-        print("test_12")
+        # print("test_12")
         # Check if classification changes
+        # print(output_bounds)
         if torch.argmax(output_bounds[0]) == torch.argmax(output_bounds[1]):
             best_eps = mid  # Still robust
             low = mid
@@ -57,10 +58,11 @@ def quantitative_lirpa(model, step_num, max_radius, points):
     #     nnet_exporter(model, tmpfile.name, points)
     #     nnet_file = tmpfile.name
     #     # Create a process pool and pass the file and points to workers
-    b_model = BoundedModule(model, torch.empty((1, 3, 32, 32)))
+    print(points[1, :].shape)
+    b_model = BoundedModule(model, torch.empty((1,784)))
 
     for idx, point in enumerate(points.cuda()):
-        print("test")
+        # print("test")
         radius = find_robustness_radius(b_model, point, max_radius, step_num)
         radii.append(radius)
         if idx % 10 == 0:
