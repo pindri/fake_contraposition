@@ -6,15 +6,10 @@ parameters:
     values: [Standard, AT]
   seed:
     values: [0,1,2,3,4]
-  temp_scaling_regularization:
-    values: [0.0]
-  scaler_split:
-    values: [0.00]
   sampler_split:
     values: [0.2]
   weight_decay:
     values: [5e-4]
-
   lr:
     values: [0.2]        # was 0.2 — scale linearly for batch-512
   n_epochs:
@@ -23,7 +18,6 @@ parameters:
     values: [512]        # keep, but see note ↘
   momentum:
     values: [0.95]       # tiny bump helps with larger LR
-
   dataset:
     values: ["cifar10"]
   EPS:
@@ -39,9 +33,9 @@ parameters:
 
 # ============ GUARANTEE PARAMS ===========
   epsilon:
-    values: [0.05]
+    values: [0.01]
   kappa_max_quantile:
-    values: [0.95]
+    values: [0.99]
   delta:
     values: [0.005]
   PGD_EPS:

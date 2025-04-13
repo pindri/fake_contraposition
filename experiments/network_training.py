@@ -2,8 +2,11 @@ import gc
 import os
 import time
 
+import onnx
 import torch
+from onnx2pytorch import ConvertModel
 
+from pag_robustness.readONNXModels.bigConvONNX import BigConvOnnx, load_weights_from_onnx_state_dict
 from pag_robustness.robustness_oracles.Quantitative_LiRPA import quantitative_lirpa
 
 if not torch.cuda.is_available():
@@ -36,6 +39,18 @@ def get_base_model(dim_input: int, dim_output: int, network_type: str) -> RobMod
         case "vgg11_bn":
             # normal_model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
             normal_model = torch.hub.load('chenyaofo/pytorch-cifar-models', 'cifar10_vgg11_bn', pretrained=False)
+        case "convSmall":
+            onnx_model_path = "/home/pblohm/pag/fake_contraposition/rob/onnx_models/mnist_convSmallRELU__Point.onnx"
+            onnx_model = onnx.load(onnx_model_path)
+            normal_model = load_weights_from_onnx_state_dict(
+                ConvertModel(onnx_model,experimental=True).state_dict(),
+                BigConvOnnx())
+        case "convBig":
+            onnx_model_path = "/home/pblohm/pag/fake_contraposition/rob/onnx_models/mnist_convBigRELU__DiffAI.onnx"
+            onnx_model = onnx.load(onnx_model_path)
+            normal_model = load_weights_from_onnx_state_dict(
+                ConvertModel(onnx_model,experimental=True).state_dict(),
+                BigConvOnnx())
         case _:
             raise "unknown network type"
     net = normal_model.to(device="cuda")
@@ -134,7 +149,7 @@ def temperature_scale_network(dataset: str, network_type: str):
 
 def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_temp: int = 1, labels: Tensor = None):
     start_time = time.time()
-    batch_size = 16186
+    batch_size = 16186//2
     num_batches = data.size(0) // batch_size + int(data.size(0) % batch_size != 0)
     preds = []
     data.requires_grad = False
