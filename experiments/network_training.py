@@ -11,6 +11,7 @@ from pag_robustness.robustness_oracles.Quantitative_LiRPA import quantitative_li
 
 if not torch.cuda.is_available():
     raise Exception("cuda is not available")
+
 import mair
 import numpy as np
 import pandas as pd
