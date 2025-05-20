@@ -1,10 +1,8 @@
-import numpy as np
 import torch
-from mair.attacks.attack import Attack
 from torch import nn
-from torchvision import transforms
 
 from pag_robustness.temperature_scaled_network import denormalize_data, renormalize_data
+
 
 
 class Quantitative_PGD:

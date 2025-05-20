@@ -1,9 +1,5 @@
-import concurrent.futures
-import tempfile
-import auto_LiRPA
 import numpy as np
 import torch
-from maraboupy import Marabou
 
 from auto_LiRPA import PerturbationLpNorm, BoundedTensor, BoundedModule
 from torch import nn

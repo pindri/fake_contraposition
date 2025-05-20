@@ -23,7 +23,7 @@ from mair import Standard, RobModel, TRADES
 from pag_robustness.datasets import get_loaders, get_kfold_loaders
 from network_utils import get_classes, get_confidences
 from pag_robustness.models import FFNetwork
-from pag_robustness.robustness_oracles.Quantitative_Marabou import quantitative_Marabou
+from pag_robustness.robustness_oracles.Quantitative_Marabou import quantitative_marabou
 from pag_robustness.robustness_oracles.Quantitative_PDG import Quantitative_PGD
 from pag_robustness.sample_complexities import complexity
 from pag_robustness.temperature_scaled_network import TemperatureScaledNetwork, sample_from_dataloader
@@ -33,18 +33,16 @@ def get_base_model(dim_input: int, dim_output: int, network_type: str) -> RobMod
     match network_type:
         case "feed_forward":
             normal_model = FFNetwork(dim_input, dim_output, layer_sizes=wandb.config.layer_sizes)
-        case "resnet18":
-            # normal_model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
+        case "resnet20":
             normal_model = torch.hub.load('chenyaofo/pytorch-cifar-models', 'cifar10_resnet20', pretrained=False)
         case "vgg11_bn":
-            # normal_model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
             normal_model = torch.hub.load('chenyaofo/pytorch-cifar-models', 'cifar10_vgg11_bn', pretrained=False)
         case "convSmall":
             onnx_model_path = "/home/pblohm/pag/fake_contraposition/rob/onnx_models/mnist_convSmallRELU__Point.onnx"
             onnx_model = onnx.load(onnx_model_path)
             normal_model = load_weights_from_onnx_state_dict(
                 ConvertModel(onnx_model,experimental=True).state_dict(),
-                BigConvOnnx())
+                SmallConvOnnx())
         case "convBig":
             onnx_model_path = "/home/pblohm/pag/fake_contraposition/rob/onnx_models/mnist_convBigRELU__DiffAI.onnx"
             onnx_model = onnx.load(onnx_model_path)
@@ -54,14 +52,8 @@ def get_base_model(dim_input: int, dim_output: int, network_type: str) -> RobMod
         case _:
             raise "unknown network type"
     net = normal_model.to(device="cuda")
-    # net = torch.compile(net, mode="max-autotune")
     robust_model = mair.RobModel(net, n_classes=dim_output)
-    # if torch.cuda.is_available():
-    #     # 1. send to GPU **first**
-    #     # robust_model = robust_model.to(device="cuda", memory_format=torch.channels_last)
-    #     # 2. then compile – this is the order recommended by the PT devs
-    #     #    (compile before DDP/FSDP, after .cuda()) :contentReference[oaicite:0]{index=0}
-    #     robust_model = torch.compile(robust_model.model, mode="max-autotune")
+
     return robust_model
 
 
@@ -100,7 +92,6 @@ def train_network(dataset: str, network_type: str):
     trainer.setup(optimizer=f"SGD(lr={wandb.config.lr}, "
                             f"    momentum={wandb.config.momentum}, "
                             f"    weight_decay={wandb.config.weight_decay})",
-                  # scheduler="Step(milestones=[10, 20, 30], gamma=0.1)",
                   scheduler=f"CosineAnnealingLR(T_max={wandb.config.n_epochs})",
                   scheduler_type="Epoch",
                   minimizer=None,  # or "AWP(rho=5e-3)",
@@ -181,7 +172,7 @@ def attack_model(name: str, model: RobModel, data: Tensor, method: str, scaling_
             classes.requires_grad = False
             steps, distances = rob_pgd.forward(data, classes)
         case "marabou":
-            distances = quantitative_Marabou(model.cpu(), points=data,
+            distances = quantitative_marabou(model.cpu(), points=data,
                                              step_num=wandb.config.MARABOU_STEPS,
                                              max_radius=wandb.config.MARABOU_MAX_RADIUS)
             steps = torch.zeros_like(distances)

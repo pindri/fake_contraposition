@@ -65,7 +65,6 @@ def load_weights_from_onnx_state_dict(onnx_state_dict, model):
     Map weights from an ONNX-converted state_dict to the custom model.
     Adjust the keys if necessary.
     """
-    # Mapping from ONNX node names to our module's parameter names
     mapping = {
         "Conv_19.weight": "conv1.weight",
         "Conv_19.bias": "conv1.bias",
@@ -91,23 +90,3 @@ def load_weights_from_onnx_state_dict(onnx_state_dict, model):
             print(f"Warning: {onnx_name} not found in the ONNX state_dict.")
     model.load_state_dict(new_state, strict=False)
     return model
-
-# Example usage:
-# Assuming you have already converted your ONNX file using onnx2pytorch, e.g.:
-#
-#   import onnx
-#   from onnx2pytorch import ConvertModel
-#
-#   onnx_model = onnx.load("model.onnx")
-#   converted_model = ConvertModel(onnx_model)
-#   onnx_state_dict = converted_model.state_dict()
-#
-# Then you can build your custom module and load the weights:
-
-# custom_model = CustomONNXModel()
-# custom_model = load_weights_from_onnx_state_dict(onnx_state_dict, custom_model)
-#
-# # Test with a dummy input (batch size 8, 1 channel, e.g., 28x28 image if applicable)
-# dummy_input = torch.randn(8, 1, 28, 28)
-# output = custom_model(dummy_input)
-# print("Output shape:", output.shape)
