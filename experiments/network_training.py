@@ -8,6 +8,7 @@ from pag_robustness.robustness_oracles.Quantitative_LiRPA import quantitative_li
 
 if not torch.cuda.is_available():
     raise Exception("cuda is not available")
+
 import mair
 import numpy as np
 import pandas as pd
@@ -16,7 +17,7 @@ from torch import Tensor
 import wandb
 from mair import Standard, RobModel, TRADES
 
-from pag_robustness.datasets import get_loaders
+from pag_robustness.datasets import get_loaders, get_kfold_loaders
 from network_utils import get_classes, get_confidences
 from pag_robustness.models import FFNetwork
 from pag_robustness.robustness_oracles.Quantitative_Marabou import quantitative_Marabou
@@ -34,12 +35,18 @@ def get_base_model(dim_input: int, dim_output: int, network_type: str) -> RobMod
             normal_model = torch.hub.load('chenyaofo/pytorch-cifar-models', 'cifar10_resnet20', pretrained=False)
         case "vgg11_bn":
             # normal_model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
-            normal_model = torch.hub.load('chenyaofo/pytorch-cifar-models', 'vgg11_bn', pretrained=False)
+            normal_model = torch.hub.load('chenyaofo/pytorch-cifar-models', 'cifar10_vgg11_bn', pretrained=False)
         case _:
             raise "unknown network type"
-    robust_model = mair.RobModel(normal_model, n_classes=dim_output)
-    if torch.cuda.is_available():
-        robust_model = robust_model.cuda()
+    net = normal_model.to(device="cuda")
+    # net = torch.compile(net, mode="max-autotune")
+    robust_model = mair.RobModel(net, n_classes=dim_output)
+    # if torch.cuda.is_available():
+    #     # 1. send to GPU **first**
+    #     # robust_model = robust_model.to(device="cuda", memory_format=torch.channels_last)
+    #     # 2. then compile – this is the order recommended by the PT devs
+    #     #    (compile before DDP/FSDP, after .cuda()) :contentReference[oaicite:0]{index=0}
+    #     robust_model = torch.compile(robust_model.model, mode="max-autotune")
     return robust_model
 
 
@@ -53,14 +60,13 @@ def setup_and_get_data(dataset, network_type) -> (str, RobModel, dict):
     torch.manual_seed(wandb.config.seed)  # Set PyTorch seed for CPU operations
     torch.cuda.manual_seed(wandb.config.seed)  # Set PyTorch seed for current GPU
     torch.cuda.manual_seed_all(wandb.config.seed)  # Set seed for all GPUs if using multi-GPU
-    torch.backends.cudnn.deterministic = True  # Enforce deterministic algorithms
-    torch.backends.cudnn.benchmark = False  # Disable automatic optimizations that could introduce randomness
+    torch.backends.cudnn.deterministic = not True  # Enforce deterministic algorithms
+    torch.backends.cudnn.benchmark = not False  # Disable automatic optimizations that could introduce randomness
 
-    dim_input, dim_output, train_loader, scaler_loader, val_loader, test_loader = (
-        get_loaders(dataset, scaler_split=wandb.config.scaler_split, sampler_split=wandb.config.sampler_split,
-                    batch_size=wandb.config.batch_size, flatten=dataset != "cifar10"))
+    dim_input, dim_output, train_loader, val_loader, test_loader = (
+        get_kfold_loaders(dataset, split_index=wandb.config.seed, batch_size=wandb.config.batch_size, flatten=dataset !="cifar10"))
     robust_model = get_base_model(dim_input, dim_output, network_type)
-    return name, robust_model, {"train": train_loader, "scale": scaler_loader, "val": val_loader, "test": test_loader}
+    return name, robust_model, {"train": train_loader, "val": val_loader, "test": test_loader}
 
 
 def train_network(dataset: str, network_type: str):
@@ -79,11 +85,13 @@ def train_network(dataset: str, network_type: str):
     trainer.setup(optimizer=f"SGD(lr={wandb.config.lr}, "
                             f"    momentum={wandb.config.momentum}, "
                             f"    weight_decay={wandb.config.weight_decay})",
-                  scheduler="Step(milestones=[10, 15], gamma=0.1)",
+                  # scheduler="Step(milestones=[10, 20, 30], gamma=0.1)",
+                  scheduler=f"CosineAnnealingLR(T_max={wandb.config.n_epochs})",
                   scheduler_type="Epoch",
                   minimizer=None,  # or "AWP(rho=5e-3)",
-                  n_epochs=wandb.config.n_epochs
+                  n_epochs=wandb.config.n_epochs,
                   )
+    # with torch.autocast("cuda"):
     trainer.fit(train_loader=loaders["train"],
                 n_epochs=wandb.config.n_epochs,
                 save_path=f'../rob/{name}/',
@@ -212,7 +220,7 @@ def sampling(dataset: str, network_type: str, method: str):
     robust_model.eval()
 
     print("val", validation_sample[0].min(), validation_sample[0].max())
-    attack_model(f"{name}_{method}_std{wandb.config.SAMPLING_GN_STD}_best", robust_model, validation_sample[0], method,
+    attack_model(f"{name}_{method}_std{wandb.config.SAMPLING_GN_STD}_best_shiny", robust_model, validation_sample[0], method,
                  scaled_model.temperature)
     del robust_model
     del scaled_model
@@ -245,7 +253,7 @@ def testing(dataset: str, network_type: str, method: str):
     all_labels = torch.cat(all_labels, dim=0)
     all_inputs = (torch.cat(all_inputs, dim=0))
     print(all_inputs.min(), all_inputs.max())
-    classes = attack_model(f"validation_set_{name}_{method}_std{wandb.config.SAMPLING_GN_STD}_best", robust_model,
+    classes = attack_model(f"validation_set_{name}_{method}_std{wandb.config.SAMPLING_GN_STD}_best_shiny", robust_model,
                            all_inputs.clone(), method, scaled_model.temperature, all_labels.clone())
     print(f"accuracy: {(all_labels.cuda() == classes.cuda()).sum()}")
 
@@ -259,6 +267,6 @@ def testing(dataset: str, network_type: str, method: str):
     all_labels = torch.cat(all_labels, dim=0)
     all_inputs = (torch.cat(all_inputs, dim=0))
     print(all_inputs.min(), all_inputs.max())
-    classes = attack_model(f"test_{name}_{method}_std{wandb.config.SAMPLING_GN_STD}_best", robust_model, all_inputs,
+    classes = attack_model(f"test_{name}_{method}_std{wandb.config.SAMPLING_GN_STD}_best_shiny", robust_model, all_inputs,
                            method, scaled_model.temperature, all_labels)
     print(f"accuracy: {(all_labels.cuda() == classes.cuda()).sum()}")

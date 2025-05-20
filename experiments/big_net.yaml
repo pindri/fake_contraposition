@@ -3,25 +3,27 @@ parameters:
   robust_beta:
     values: [0.1]
   optimization_function:
-    values: [Standard]
+    values: [Standard, AT]
   seed:
-    values: [666]
+    values: [0,1,2,3,4]
   temp_scaling_regularization:
     values: [0.0]
   scaler_split:
     values: [0.00]
   sampler_split:
-    values: [0.16]
-  lr:
-    values: [0.1]
-  momentum:
-    values: [0.9]
+    values: [0.2]
   weight_decay:
     values: [5e-4]
+
+  lr:
+    values: [0.2]        # was 0.2 — scale linearly for batch-512
   n_epochs:
-    values: [200]
+    values: [120]        # was 200 — cosine schedule covers full training in 120
   batch_size:
-    values: [128]
+    values: [512]        # keep, but see note ↘
+  momentum:
+    values: [0.95]       # tiny bump helps with larger LR
+
   dataset:
     values: ["cifar10"]
   EPS:

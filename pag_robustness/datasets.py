@@ -1,8 +1,8 @@
 import numpy as np
 import torch
 from torchvision import datasets, transforms
-from sklearn.model_selection import train_test_split
-from torch.utils.data import Dataset, TensorDataset, DataLoader, random_split
+from sklearn.model_selection import train_test_split, StratifiedKFold
+from torch.utils.data import Dataset, TensorDataset, DataLoader, random_split, Subset
 from sklearn import datasets as sk_datasets
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
@@ -10,6 +10,84 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 class ToTensor:
     def __call__(self, sample):
         return torch.tensor(sample, dtype=torch.float32)
+
+DATA_SPLIT_RANDOM_STATE = 42  # constant seed
+
+def kfold_indices(num_samples: int,
+                  labels: np.ndarray,
+                  k_folds: int,
+                  fold_idx: int):
+
+    labels = np.asarray(labels)
+    assert len(labels) == num_samples, "num_samples and labels length differ"
+    assert 0 <= fold_idx < k_folds, "fold_idx out of range"
+
+    skf = StratifiedKFold(n_splits=k_folds,
+                          shuffle=True,
+                          random_state=DATA_SPLIT_RANDOM_STATE)
+
+    for i, (train_idx, val_idx) in enumerate(skf.split(np.zeros(num_samples), labels)):
+        if i == fold_idx:
+            return train_idx, val_idx
+
+
+def get_kfold_loaders(dataset_name, batch_size=32, split_num=5, split_index=0, flatten=False):
+    if dataset_name.lower() == 'mnist':
+        dim_input = 784
+        dim_output = 10
+        transform = transforms.Compose([transforms.ToTensor(),
+                                        transforms.Normalize((0.1307,), (0.3081,))])
+        if flatten:
+            flatten_transform = transforms.Compose([
+                transforms.Lambda(lambda x: x.view(-1))  # Flatten.
+            ])
+            transform = transforms.Compose([transform, flatten_transform])
+        train_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+        test_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+
+        train_idx, sampler_idx = kfold_indices(len(train_dataset), train_dataset.targets, split_num, split_index)
+        sampler_dataset = Subset(train_dataset, sampler_idx)
+        train_dataset = Subset(train_dataset, train_idx)
+        # Dataloaders.
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        sampler_loader = DataLoader(sampler_dataset, batch_size=batch_size, shuffle=False)
+        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+        return dim_input, dim_output, train_loader, sampler_loader, test_loader
+
+    elif dataset_name.lower() == 'cifar10':
+        dim_input = 32 * 32 * 3
+        dim_output = 10
+        transform = transforms.Compose([
+            transforms.RandomCrop(32, padding=4),  # ♥ standard augment
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.4914, 0.4822, 0.4465],
+                                 std=[0.2470, 0.2435, 0.2616]),
+        ])
+
+        if flatten:
+            flatten_transform = transforms.Compose([
+                transforms.Lambda(lambda x: x.view(-1))  # Flatten.
+            ])
+            transform = transforms.Compose([transform, flatten_transform])
+        train_dataset = datasets.CIFAR10(root='./data/cifar10', train=True, download=True, transform=transform)
+        test_dataset = datasets.CIFAR10(root='./data/cifar10', train=False, download=True, transform=transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616]),
+        ]))
+        train_idx, sampler_idx = kfold_indices(len(train_dataset), train_dataset.targets, split_num, split_index)
+        sampler_dataset = Subset(train_dataset,sampler_idx)
+        train_dataset = Subset(train_dataset,train_idx)
+        # Dataloaders.
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8)
+        sampler_loader = DataLoader(sampler_dataset, batch_size=batch_size, shuffle=False, num_workers=8)
+        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=8)
+
+        return dim_input, dim_output, train_loader, sampler_loader, test_loader
+    else:
+        raise ValueError("Dataset not supported. Please choose 'mnist' or 'cifar10'.")
+    pass
 
 
 def get_loaders(dataset_name, batch_size=32, val_split=0.2, scaler_split=0.2, sampler_split=0.2, test_split=0.2,
@@ -68,10 +146,18 @@ def get_loaders(dataset_name, batch_size=32, val_split=0.2, scaler_split=0.2, sa
         dim_input = 32*32*3
         dim_output = 10
         transform = transforms.Compose([
+            transforms.RandomCrop(32, padding=4),  # ♥ standard augment
             transforms.RandomHorizontalFlip(),
-            transforms.RandomRotation(10),  # Rotate up to ±10 degrees
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616])])
+            transforms.Normalize(mean=[0.4914, 0.4822, 0.4465],
+                                 std=[0.2470, 0.2435, 0.2616]),
+        ])
+        #
+        # transform = transforms.Compose([
+        #     transforms.RandomHorizontalFlip(),
+        #     transforms.RandomRotation(10),  # Rotate up to ±10 degrees
+        #     transforms.ToTensor(),
+        #     transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616])])
         if flatten:
             flatten_transform = transforms.Compose([
                 transforms.Lambda(lambda x: x.view(-1))  # Flatten.
@@ -87,10 +173,10 @@ def get_loaders(dataset_name, batch_size=32, val_split=0.2, scaler_split=0.2, sa
         scaler_split = len(train_dataset) - train_size - sampler_split
         train_dataset, scaler_dataset, sampler_dataset = random_split(train_dataset, [train_size, scaler_split, sampler_split])
         # Dataloaders.
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        scaler_loader = DataLoader(scaler_dataset, batch_size=batch_size, shuffle=False)
-        sampler_loader = DataLoader(sampler_dataset, batch_size=batch_size, shuffle=False)
-        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers = 8)
+        scaler_loader = DataLoader(scaler_dataset, batch_size=batch_size, shuffle=False, num_workers = 8)
+        sampler_loader = DataLoader(sampler_dataset, batch_size=batch_size, shuffle=False, num_workers = 8)
+        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers = 8)
 
         return dim_input, dim_output, train_loader, scaler_loader, sampler_loader, test_loader
 
