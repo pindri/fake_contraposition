@@ -31,10 +31,10 @@ def get_base_model(dim_input: int, dim_output: int, network_type: str) -> RobMod
             normal_model = FFNetwork(dim_input, dim_output, layer_sizes=wandb.config.layer_sizes)
         case "resnet18":
             # normal_model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
-            normal_model = torch.hub.load('chenyaofo/pytorch-cifar-models', 'cifar10_resnet20', pretrained=True)
+            normal_model = torch.hub.load('chenyaofo/pytorch-cifar-models', 'cifar10_resnet20', pretrained=False)
         case "vgg11_bn":
             # normal_model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
-            normal_model = torch.hub.load('chenyaofo/pytorch-cifar-models', 'vgg11_bn', pretrained=True)
+            normal_model = torch.hub.load('chenyaofo/pytorch-cifar-models', 'vgg11_bn', pretrained=False)
         case _:
             raise "unknown network type"
     robust_model = mair.RobModel(normal_model, n_classes=dim_output)

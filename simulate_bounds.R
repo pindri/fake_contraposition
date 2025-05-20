@@ -18,8 +18,12 @@ ineq <- function(n,eps, delta) {
     return(log((n * (n-1) + 2*n + 2)/2) + n * log(1 - eps) > log(delta))
 }
 
+ineq2_new <- function(n,eps,delta) {
+    return(!(n >= 2/log(2)/(eps)*(log(1/delta) + 2*log(2*n)-log(1-exp(-n*eps/8)))))
+}
+
 ineq2 <- function(n,eps,delta) {
-    return((n < 2/eps*(log(2/delta) + 2*log(2*n))))
+    return((n < 2/log(2)/eps*(log(2/delta) + 2*log(2*n))))
 }
 
 ineq3 <- function(n,eps,delta){
@@ -29,6 +33,13 @@ ineq3 <- function(n,eps,delta){
 complexity_orig <- function(eps,delta){
     return(16/eps*log(16/eps) + 2/eps*(2/delta))
 }
+
+ineq_fuck_it <- function(n, eps, delta, d = 2) {
+    k <- n * eps / 2
+    2^-k*(2*n)^d > delta * (1 - exp(-k/4))
+#     exp(lfactorial(2*n - k) + lfactorial(n) - lfactorial(2*n) - lfactorial(n - k))
+}
+
 
 
 complexity <- function(eps,delta) {

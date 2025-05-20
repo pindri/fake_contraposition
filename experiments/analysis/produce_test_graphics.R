@@ -1,5 +1,5 @@
 
-result_folder <- "/home/peter/tu/papers/verification/fake_contraposition/results/mnist_pgd/"
+result_folder <- "/home/peter/tu/papers/verification/fake_contraposition/results/lirpa_shiny/"
 sample_files<-list.files(path = result_folder, pattern = "sampling_m.*best.*csv")
 
 library(ggplot2)
@@ -57,8 +57,8 @@ highcontrast <- color("high contrast")
 rob_preprocessing <- function(tibble){
     tibble %>%
         mutate(#class = as.factor(class),
-               pgd_robustness_steps = pgd_robustness_steps,
-               pgd_robustness_distances = round(pgd_robustness_distances,digits = 5)
+               pgd_robustness_steps = lirpa_robustness_steps,
+               pgd_robustness_distances = round(lirpa_robustness_distances,digits = 5)
                ) %>%
         arrange(desc(confidence)) %>%
         mutate(min_robustness_steps = cummin(pgd_robustness_steps),
@@ -84,7 +84,7 @@ for (file in paste0(result_folder,sample_files)){
     sampling_data <- read.csv(file) %>% rob_preprocessing()
     test_data <- find_test_file(result_folder, file) %>% read.csv() %>% rob_preprocessing()
     # valid_data <- find_validation_file(result_folder, file) %>% read.csv() %>% rob_preprocessing()
-    # svg(paste0(seed,"test.svg"), width=13/3*2,height=10/3*2)
+    svg(paste0(extract_name(file)[2],i,"lirpa2.svg"), width=13/3.2*2,height=10/3.2*2)
     max_conf <- (sampling_data %>% arrange(confidence) %>%
         .[chernoff_bound_index(nrow(sampling_data),0.01,0.005),])$confidence
     index <- chernoff_bound_index(nrow(sampling_data),0.01,0.005)
@@ -100,7 +100,7 @@ for (file in paste0(result_folder,sample_files)){
         geom_density(alpha = 0.3, fill = highcontrast(3)[1],color = highcontrast(3)[1]) + theme_void() +
         theme(legend.position = "none")
 
-    opt <- extract_name(file)[2]
+    opt <- extract_name(file)[1]
     opt <- ifelse(opt!="AT",paste(opt,"Training"),paste0("TRADES Training"))
 
 
@@ -113,7 +113,7 @@ for (file in paste0(result_folder,sample_files)){
               aes(x=sampling_ecdf(confidence),y=min_robustness_distances, color = "Lower Bound"),
               linewidth=2) +
         geom_point(data =test_data, aes(x = sampling_ecdf(confidence), y = pgd_robustness_distances, color = "Test Data"), alpha =.2) +
-        labs(title = paste("CIFAR10 Lower Bound vs Test Data with",opt),
+        labs(title = paste("MNIST Lower Bound vs Test Data with",opt),
              x = "Confidence Score (quantiles)",
              y = "Formal Robustness (L inf distance)") +
         ylim(c(0, .25)) +
@@ -127,6 +127,9 @@ for (file in paste0(result_folder,sample_files)){
                            labels = c("Lower Bound", "Test Data", "Max Confidence")) +
         theme(legend.position = "bottom") +# Adjust legend position as needed
         guides(color = guide_legend(override.aes = list(alpha = 1)))
+
+    print(scatterplot_rob)
+    dev.off()
 
     combo_plot <- list(densityplot_rob,scatterplot_rob) |>
         wrap_plots(nrow = 2,heights=c(1,5))
@@ -191,7 +194,7 @@ results_df <- do.call(rbind, result_table)
 colnames(results_df) <- c("opt_func", "seed", "rob_beta", "map_size", "valid_preds", "total_counterexamples", "relative_error", "runtime", "accuracy")
 results_df <- as.data.frame(results_df)
 
-write.csv(results_df, "summary/mnist_pgd.csv", row.names = FALSE)
+write.csv(results_df, "summary/mnist_lirpa_shiny.csv", row.names = FALSE)
 #======= functions to check the estimated mass of counterexamples per sample guarantee =====
 #
 # result_data_preprocessing <- function(x){
