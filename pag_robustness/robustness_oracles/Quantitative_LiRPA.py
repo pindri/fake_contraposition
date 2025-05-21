@@ -26,23 +26,6 @@ def find_robustness_radius(model, point, max_radius=0.1, step_num=5):
     return radius
 
 
-def fdind_robustness_radius(model, point, max_radius=0.1, step_num=5):
-    low, high = 0, max_radius
-    best_eps = 0
-
-    for _ in range(step_num):
-        mid = (low + high) / 2
-        perturbation = PerturbationLpNorm(norm=np.inf, eps=mid)
-        bounded_input = BoundedTensor(point.unsqueeze(0), perturbation)
-        output_bounds = model.compute_bounds(x=(bounded_input,), method="backward")
-        if torch.max(output_bounds[0]) == torch.argmax(output_bounds[1]):
-            best_eps = mid  # Still robust
-            low = mid
-        else:
-            high = mid  # Not robust
-    return best_eps
-
-
 def quantitative_lirpa(model, step_num, max_radius, points, classes):
     radii = []
     class_model_list = {cls: get_bounded_class_model(model, cls, torch.empty_like(points[0].unsqueeze(0))) for cls in np.unique(classes)}

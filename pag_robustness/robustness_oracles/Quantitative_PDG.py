@@ -1,11 +1,8 @@
 import torch
 from torch import nn
 
-from pag_robustness.temperature_scaled_network import denormalize_data, renormalize_data
 
-
-
-class Quantitative_PGD:
+class QuantitativePGD:
     """
     adapted from the MAIR package
 
@@ -72,13 +69,13 @@ class Quantitative_PGD:
 
             loss = nn.CrossEntropyLoss()
             adv_inputs = inputs.clone().detach().to(self.device)
-            denormalized_inputs = denormalize_data(inputs.clone().detach())
+            denormalized_inputs = inputs.clone().detach()
             denormalized_inputs.requires_grad = False
 
             if self.random_start:
                 # Starting at a uniformly random point
-                adv_inputs = denormalize_data(adv_inputs) + torch.rand_like(inputs)*0.2*self.eps-0.1*self.eps
-                adv_inputs = renormalize_data(torch.clamp(adv_inputs, min=0, max=1).detach())
+                adv_inputs = adv_inputs + torch.rand_like(inputs) * 0.2 * self.eps - 0.1 * self.eps
+                adv_inputs = torch.clamp(adv_inputs, min=0, max=1).detach()
 
             break_vector = torch.ones(adv_inputs.shape[0]).to(self.device) * self.steps
             distance_vector = torch.ones(adv_inputs.shape[0]).to(self.device) * float('inf')
@@ -95,41 +92,32 @@ class Quantitative_PGD:
                 # Update adversarial images
                 grad = torch.autograd.grad(cost, adv_inputs, retain_graph=False, create_graph=False)[0]
 
-                delta = torch.clamp(denormalize_data(adv_inputs) + self.alpha * grad.sign() - denormalized_inputs[idx,],
+                delta = torch.clamp(adv_inputs + self.alpha * grad.sign() - denormalized_inputs[idx,],
                                     min=-self.eps, max=self.eps)
                 # Originally clamped in [0, 1] (to obtain a sample in the data space), but we don't like that.
 
-                adv_inputs = renormalize_data(torch.clamp(denormalized_inputs[idx,] + delta, min=0, max=1).detach())
-                # print(adv_inputs.min(), adv_inputs.max())
-                # adv_inputs = torch.clamp(inputs[idx,] + delta, min=0, max=1).detach()
+                adv_inputs = torch.clamp(denormalized_inputs[idx,] + delta, min=0, max=1).detach()
 
                 # for all indices in breakdown vector where: the value is self.steps and the model label is NOT the
                 # original label, set the breakdown vector index to i print(f"break_steps {torch.where((break_vector ==
                 # self.steps) & (self.model(adv_inputs).argmax(dim=1) != labels))[0]}")
-                # print(self.model(adv_inputs).argmax(dim=1))
-                # print(self.model(inputs).argmax(dim=1))
-                # print(inputs)
-                # print(adv_inputs)
 
                 resistant_samples = ((self.model(adv_inputs).argmax(dim=1) == labels[idx])
                                      .to(self.device))
                 break_vector[idx[~resistant_samples]] = i
 
-                distance_vector[idx[~resistant_samples]] = (torch.norm(inputs[idx]-adv_inputs,
+                distance_vector[idx[~resistant_samples]] = (torch.norm(inputs[idx] - adv_inputs,
                                                                        p=float('inf'),
                                                                        dim=list(range(1, inputs.ndim)))
                                                             )[~resistant_samples]
                 adv_inputs = adv_inputs[resistant_samples]
-                # adv_inputs = adv_inputs[resistant_samples]
-                # print(i, inputs[idx,].shape)
                 idx = idx[resistant_samples]
-                # print(len(idx), i)
                 if len(idx) == 0:
                     break
         return break_vector, distance_vector
 
 
-def batched_forward(model, points, batch_size = 1024, device = torch.device("cuda")):
+def batched_forward(model, points, batch_size=1024, device=torch.device("cuda")):
     num_batches = points.size(0) // batch_size + int(points.size(0) % batch_size != 0)
     outputs = []
     with torch.no_grad():
