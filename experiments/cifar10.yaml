@@ -1,11 +1,11 @@
 method: grid
 parameters:
   robust_beta:
-    values: [0.1, 0.2, 0.5, 1, 2]
+    values: [6]
   optimization_function:
     values: [AT, Standard]
   seed:
-    values: [666, 69, 42]
+    values: [0,1,2,3,4]
   temp_scaling_regularization:
     values: [0.2]
   scaler_split:

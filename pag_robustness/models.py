@@ -41,6 +41,7 @@ class _CopyModulesWrapper(nn.Module):
         # 2) non-persistent buffers for normalisation
         self.register_buffer("mean", mean, persistent=False)
         self.register_buffer("std",  std,  persistent=False)
+        self._backbone_forward = backbone.forward
 
     # ---------------------------------------------------------------- forward
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -54,7 +55,7 @@ class _CopyModulesWrapper(nn.Module):
             x = self.classifier(x)
             return x
         else:                                   # generic safety net
-            return super().forward(x)
+            return self._backbone_forward(x)
 
 
 # ────────────────────────────────────────────────────────────────────────────

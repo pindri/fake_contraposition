@@ -2,9 +2,9 @@ import gc
 import os
 import time
 
-import onnx
+# import onnx
 import torch
-from onnx2pytorch import ConvertModel
+# from onnx2pytorch import ConvertModel
 
 from pag_robustness.readONNXModels.bigConvONNX import BigConvOnnx, load_weights_from_onnx_state_dict
 from pag_robustness.robustness_oracles.Quantitative_LiRPA import quantitative_lirpa
@@ -39,15 +39,15 @@ def get_base_model(dim_input: int, dim_output: int, network_type: str) -> RobMod
             normal_model = torch.hub.load('chenyaofo/pytorch-cifar-models', 'cifar10_vgg11_bn', pretrained=False)
         case "convSmall":
             onnx_model_path = "/home/pblohm/pag/fake_contraposition/rob/onnx_models/mnist_convSmallRELU__Point.onnx"
-            onnx_model = onnx.load(onnx_model_path)
-            normal_model = load_weights_from_onnx_state_dict(
-                ConvertModel(onnx_model,experimental=True).state_dict(),
-                BigConvOnnx())  # TODO: we need a different model here
+            # onnx_model = onnx.load(onnx_model_path)
+            normal_model = load_weights_from_onnx_state_dict()
+                # ConvertModel(onnx_model,experimental=True).state_dict(),
+                # BigConvOnnx())  # TODO: we need a different model here
         case "convBig":
             onnx_model_path = "/home/pblohm/pag/fake_contraposition/rob/onnx_models/mnist_convBigRELU__DiffAI.onnx"
-            onnx_model = onnx.load(onnx_model_path)
+            # onnx_model = onnx.load(onnx_model_path)
             normal_model = load_weights_from_onnx_state_dict(
-                ConvertModel(onnx_model,experimental=True).state_dict(),
+            #     ConvertModel(onnx_model,experimental=True).state_dict(),
                 BigConvOnnx())
         case _:
             raise "unknown network type"
