@@ -63,6 +63,8 @@ def CifarNormalizedNetwork(backbone: nn.Module) -> nn.Module:
     std  = torch.tensor([0.2470, 0.2435, 0.2616]).view(1, 3, 1, 1)
     return _CopyModulesWrapper(backbone, mean, std)
 
+
+
 class _NormalizedWrapper(nn.Module):
     """
     Generic wrapper that transparently normalizes inputs before the backbone
@@ -118,12 +120,16 @@ class _NormalizedWrapper(nn.Module):
 
 
 
-class CCifarNormalizedNetwork(_NormalizedWrapper):
+class CCifarNormalizedNetwork(nn.Module):
     """Wrap any 3-channel CNN to operate on CIFAR-10-normalized inputs."""
-    def __init__(self, backbone: nn.Module):
-        mean = torch.tensor([0.4914, 0.4822, 0.4465]).view(1, 3, 1, 1)
-        std  = torch.tensor([0.2470, 0.2435, 0.2616]).view(1, 3, 1, 1)
-        super().__init__(backbone, mean, std)
+    def __init__(self, backbone: nn.Module, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.mean = torch.tensor([0.4914, 0.4822, 0.4465]).view(1, -1, 1, 1)
+        self.std  = torch.tensor([0.2470, 0.2435, 0.2616]).view(1, -1, 1, 1)
+        self.backbone = backbone
+
+    def forward(self, x):
+        return self.backbone.forward((x-self.mean.cuda())/self.std.cuda())
 
 
 class MNISTNormalizedNetwork(nn.Module):

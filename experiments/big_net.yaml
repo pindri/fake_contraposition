@@ -1,9 +1,9 @@
 method: grid
 parameters:
   robust_beta:
-    values: [0.1]
+    values: [6]
   optimization_function:
-    values: [Standard, AT]
+    values: [Standard, TRADES]
   seed:
     values: [0,1,2,3,4]
   sampler_split:
@@ -41,7 +41,11 @@ parameters:
   PGD_EPS:
     values: [0.5]
   PGD_ALPHA:
-    values: [0.000390625] # 0.1/256
+#    values: [0.000390625] # 0.1/256
+    values: [0.0009765625] # 0.25/256 (for runtime)
+#    values: [0.01]
+  SAMPLING_SEED:
+    values: [10, 20, 30, 40, 50]
   PGD_STEPS:
     values: [500]
   SAMPLING_GN_STD:
