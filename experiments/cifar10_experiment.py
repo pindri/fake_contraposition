@@ -7,7 +7,6 @@ from network_training import train_network, sampling, testing
 
 WANDB_ENTITY = "peter-blohm-tu-wien"
 
-# print(torch.cuda.is_available())
 if __name__ == "__main__":
 
     with open("cifar10_new.yaml", 'r') as stream:
