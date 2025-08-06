@@ -1,11 +1,6 @@
 
-# result_folder <- "./results/crookshanks/new/"
-# result_folder <- "./results/hogsmeade_the_chosen/"
-result_folder <- "./results/sly/new/"
-# result_folder <- "./results/resnet20_results/"
-# result_folder <- "./results/mnist_ff_all_results/"
-# result_folder <- "./results/"
-sample_files<-list.files(path = result_folder, pattern = "sampling_[mc].*0.csv")
+result_folder <- "./results/sly/"
+sample_files<-list.files(path = result_folder, pattern = "sampling_m.*0.csv")
 
 library(ggplot2)
 library(ggExtra)
@@ -17,16 +12,16 @@ library(khroma)
 chernoff_bound_index <-  function(n,p,delta){
     ceiling(n*(1-p)-sqrt(2*n*(1-p)*log(2/delta)))
 }
-#
-# result_data_preprocessing <- function(x){
-#     mutate(x,Class = as.factor(class)) %>%
-#         mutate(Class = ifelse(Class %in% c(0,7), Class,"Rest")) %>%
-#         group_by(as.factor(Class)) %>%
-#         arrange(x,desc(confidence)) %>%
-#         mutate(min_robustness = cummin(PGD_robustness)) %>%
-#         arrange(desc(scaled_confidence)) %>%
-#         mutate(min_scaled_robustness = cummin(PGD_robustness))
-# }
+
+result_data_preprocessing <- function(x){
+    mutate(x,Class = as.factor(class)) %>%
+        mutate(Class = ifelse(Class %in% c(0,7), Class,"Rest")) %>%
+        group_by(as.factor(Class)) %>%
+        arrange(x,desc(confidence)) %>%
+        mutate(min_robustness = cummin(PGD_robustness)) %>%
+        arrange(desc(scaled_confidence)) %>%
+        mutate(min_scaled_robustness = cummin(PGD_robustness))
+}
 
 find_test_file <- function(folder,filename){
     shortname <- substr(filename,10+nchar(folder),nchar(filename)-7)
@@ -35,7 +30,7 @@ find_test_file <- function(folder,filename){
 }
 
 find_validation_file <- function(folder,filename){
-    shortname <- substr(filename,10+nchar(folder),nchar(filename)-7)
+    shortname <- substr(filename,10+nchar(folder),1000)
     paste0(folder,list.files(path=folder,pattern=paste0(".*validation_set_",shortname))[1])
 }
 
@@ -60,20 +55,12 @@ base_theme <-
               legend.title=element_blank()) # Keep tick marks
 highcontrast <- color("high contrast")
 
-rob_preprocessing <- function(tibble,conservative=F){
+rob_preprocessing <- function(tibble){
     tibble %>%
         mutate(#class = as.factor(class),
-               pgd_robustness_steps = if ("pgd_robustness_steps" %in% names(.)) {
-      pgd_robustness_steps
-    } else {
-      lirpa_robustness_steps
-    }, #this i have to change, sometimes the input has not "pgd_..." but "lirpa_..." as names
-               pgd_robustness_distances = if ("pgd_robustness_distances" %in% names(.)) {
-      round(pgd_robustness_distances, digits = 5)
-    } else {
-      round(lirpa_robustness_distances, digits = 5)
-    }) %>%
-        mutate(confidence = confidence+ conservative*runif(nrow(tibble),min=0, max=10^-12)) %>%
+               pgd_robustness_steps = pgd_robustness_steps,
+               pgd_robustness_distances = round(pgd_robustness_distances,digits = 5)
+               ) %>%
         arrange(desc(confidence)) %>%
         mutate(min_robustness_steps = cummin(pgd_robustness_steps),
                min_robustness_distances = cummin(pgd_robustness_distances)) %>%
@@ -81,20 +68,12 @@ rob_preprocessing <- function(tibble,conservative=F){
         # arrange(class)
 }
 
-extract_name <- function(filename) {# this needs a correct description and the uses need to be updated
+extract_name <- function(filename) {
     #returns a list of length 4 containing the training method, the training seed, and the robust beta, and the sampling seed
-  filename <- gsub("\\.csv$", "", basename(filename))
+  filename <- gsub("\\.csv$", "", filename)
   parts <- unlist(strsplit(filename, "_"))
   extracted <- parts[c(6:8,10)]
-  extracted <- rev(parts)[c(6,5,4,3,1)]
-  properties <- c("problem"=toupper(parts[2]), #this needs to be converted into uppercase
-                  "architecture"= parts[3],
-                  "training"=extracted[1],
-                  "seed"=extracted[2],
-                  "rob_beta"=extracted[3],
-                  "oracle"=gsub("I","i",toupper(extracted[4])),
-                  "sampling_seed"=extracted[5])
-  return(properties)
+  return(extracted)
 }
 result_table <- list()
 # plot_scheme(highcontrast(3), colours = TRUE, names = TRUE, size = 0.9)
@@ -102,25 +81,17 @@ result_table <- list()
 i <- 0
 for (file in paste0(result_folder,sample_files)){
 
-
     # print(nrow(sampling_data))
-    # print(file)
-    properties <- extract_name(file)
-    if(anyNA(properties)){
-        stop("File name invalid")
-        }
-    print(properties)
-    if(properties["oracle"]=="PGD"){next}
-    svg(paste0("./cr_plots/", paste0(properties,collapse="_"),".svg"), width=6.5/2*2.54,height=1/1.37*6.5/2*2.54)
-
-    sampling_data <- read.csv(file) %>% rob_preprocessing(conservative = T)
+    print(file)
+    sampling_data <- read.csv(file) %>% rob_preprocessing()
     test_data <- find_test_file(result_folder, file) %>% read.csv() %>% rob_preprocessing()
-    # test_data <- find_validation_file(result_folder, file) %>% read.csv() %>% rob_preprocessing()
-
-    p_min <- ifelse("PGD" == properties["oracle"],0.01,0.05)
+    # valid_data <- find_validation_file(result_folder, file) %>% read.csv() %>% rob_preprocessing()
+    svg(
+        paste0("newplots/bigconv/",paste0(extract_name(file),"_",collapse=""),i,"mnist.svg")
+, width=6.5/2*2.54,height=1/1.37*6.5/2*2.54)
     max_conf <- (sampling_data %>% arrange(confidence) %>%
-        .[chernoff_bound_index(nrow(sampling_data),p_min,0.005),])$confidence
-    index <- chernoff_bound_index(nrow(sampling_data),p_min,0.005)
+        .[chernoff_bound_index(nrow(sampling_data),0.01,0.005),])$confidence
+    index <- chernoff_bound_index(nrow(sampling_data),0.01,0.005)
 
     # densityplot_rob <- ggplot(test_data,
     #                           aes(y = pgd_robustness_distances, fill = highcontrast(3)[1], color = highcontrast(3)[1])) +
@@ -129,12 +100,12 @@ for (file in paste0(result_folder,sample_files)){
     #     theme(legend.position = "none")
 
     sampling_ecdf <- ecdf(sampling_data$confidence)
-    # densityplot_rob <- ggplot(test_data, aes(x = sampling_ecdf(confidence))) +
-    #     geom_density(alpha = 0.3, fill = highcontrast(3)[1],color = highcontrast(3)[1]) + theme_void() +
-    #     theme(legend.position = "none")
+    densityplot_rob <- ggplot(test_data, aes(x = sampling_ecdf(confidence))) +
+        geom_density(alpha = 0.3, fill = highcontrast(3)[1],color = highcontrast(3)[1]) + theme_void() +
+        theme(legend.position = "none")
 
-    # opt <-
-    # opt <- ifelse(opt!="TRADES",paste(opt,"Training"),paste0("TRADES Training"))
+    opt <- extract_name(file)[1]
+    opt <- ifelse(opt!="TRADES",paste(opt,"Training"),paste0("TRADES Training"))
 
 
     scatterplot_rob <- ggplot() +
@@ -146,13 +117,10 @@ for (file in paste0(result_folder,sample_files)){
               aes(x=sampling_ecdf(confidence),y=min_robustness_distances, color = "Lower Bound"),
               linewidth=2) +
         geom_point(data =test_data, aes(x = sampling_ecdf(confidence), y = pgd_robustness_distances, color = "Test Data"), alpha =.2) +
-        labs(title = paste(properties["problem"],
-                           properties["architecture"],
-                           "Lower Bound vs Test Data with",
-                           properties["training"], "Training"),
+        labs(title = paste("MNIST BigConv Lower Bound vs Test Data with",opt),
              x = "Confidence Score",
-             y = paste(properties["oracle"],"Robustness")) +
-        scale_y_continuous(limits = c(0, 0.05)) +
+             y = "PGD Robustness") +
+        ylim(c(0, .05)) +
         base_theme +
         geom_vline(aes(xintercept = sampling_ecdf(max_conf), color = "Max Confidence"),  linetype=2, linewidth=1.5)+
         scale_color_manual(values = c("Lower Bound" = highcontrast(3)[3],
@@ -167,8 +135,8 @@ for (file in paste0(result_folder,sample_files)){
     print(scatterplot_rob)
     dev.off()
 
-    # combo_plot <- list(densityplot_rob,scatterplot_rob) |>
-    #     wrap_plots(nrow = 2,heights=c(1,5))
+    combo_plot <- list(densityplot_rob,scatterplot_rob) |>
+        wrap_plots(nrow = 2,heights=c(1,5))
     shortname <- substr(file,10+nchar(result_folder),1000)
     # ggsave(filename=paste0("plots/new/cifar/",shortname,".svg"),
     #        plot=scatterplot_rob,
@@ -184,13 +152,9 @@ for (file in paste0(result_folder,sample_files)){
     mapping[mapping$confidence>max_conf,]$pgd_robustness_distances <-
         max(mapping[mapping$confidence<max_conf,]$pgd_robustness_distances)
 
-    mapping  <- mapping %>%group_by(min_robustness_distances) %>%
-        arrange(min_robustness_distances,desc(confidence)) %>%
-        filter(row_number()==1)
-
     if(all(mapping$confidence>max_conf)){
         #thank you,
-        # next
+        next
     }
 
     valid_test_preds <- test_data %>% filter(confidence < max_conf) %>%
@@ -218,7 +182,7 @@ for (file in paste0(result_folder,sample_files)){
 
 
     i <- i+1
-    result_table[[i]]<- c(extract_name(file),nrow(mapping)+1,#we need to add one to cover the full space
+    result_table[[i]]<- c(extract_name(file),nrow(mapping),
                           nrow(valid_test_preds),
                           sum(valid_test_preds$violates_bound, na.rm=T),
                           counter_mass_data %>% reframe(counter_examples/mass) %>% max() %>% max(0),
@@ -226,45 +190,15 @@ for (file in paste0(result_folder,sample_files)){
                           mean(valid_test_preds$pred_class == valid_test_preds$true.class)
 
     )
-    print(result_table[[i]])
-
+    # dev.off()
 }
 results_df <- do.call(rbind, result_table)
 
 # Convert to data frame with meaningful column names
-colnames(results_df) <- c("problem", "architecture", "training","seed", "rob_beta", "oracle", "sampling_beta","map_size", "valid_preds", "total_counterexamples", "relative_error", "runtime", "accuracy")
+colnames(results_df) <- c("opt_func", "seed", "rob_beta","sampling_seed", "map_size", "valid_preds", "total_counterexamples", "relative_error", "runtime", "accuracy")
 results_df <- as.data.frame(results_df)
-write.csv(results_df, paste("summary/cr/",properties["problem"],"_",properties["architecture"],".csv",sep=""), row.names = FALSE)
 
-# ========== TABLE ==========
-
-k <- results_df %>%
-    mutate(real_eps = ifelse(oracle=="PGD",0.01,0.02), facts = ifelse(oracle=="PGD",1,10), sad = (as.numeric(map_size)*facts < as.numeric(total_counterexamples)) | (as.numeric(relative_error) > real_eps)) %>%
-    group_by(training,oracle) %>%
-    summarize(max_err = max(as.numeric(relative_error))*1000,
-              counters = max(total_counterexamples),
-              minmap = min(map_size),
-              maxmap = max(map_size),
-              good_runs = sum(!sad),
-              avg_runtime = mean(as.numeric(runtime))/60,
-              all_runs = n(),min_acc = min(accuracy)) %>% arrange(oracle)
-k
-# resnet
-# 1 Standard PGD         2      2                      8 0.00135   0.900        15
-# 2 TRADES   PGD        23     41                      4 0.00151   0.667        25
-# vgg
-# 1 Standard PGD         2      4                      0  0        0.902        25
-# 2 TRADES   PGD        25     59                     13  0.0170   0.771        22
-
-# 1 Standard LiRPA  5      6      0                      0       0.9856…        15
-# 2 Standard PGD    19     27     0                      0       0.9866…        25
-# 3 TRADES   LiRPA  3      4      44                     0.0033… 0.8987…        12
-# 4 TRADES   PGD    10     19     77                     0.3090… 0.9303…         0
-
-
-
-
-
+write.csv(results_df, "summary/new/mnist_bigConv.csv", row.names = FALSE)
 #======= functions to check the estimated mass of counterexamples per sample guarantee =====
 #
 # result_data_preprocessing <- function(x){
