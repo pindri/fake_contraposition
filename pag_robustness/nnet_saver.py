@@ -17,7 +17,8 @@ def nnet_exporter(model: torch.nn.Module, file, dataset, comment: str = ""):
                         f"{weights[0].shape[1]},"
                         f"{weights[-1].shape[1]},"
                         f"{max([layer.shape[1] for layer in weights])},\n")
-        # 3: A sequence of values describing the network layer sizes. Begin with the input size, then the size of the first layer, second layer, and so on until the output layer size
+        # 3: A sequence of values describing the network layer sizes.
+        # Begin with input size, then the size of the first layer, second layer, and so on until the output layer size
         f.write(str(weights[0].shape[1]) + "," + ",".join([str(layer.shape[0]) for layer in weights]) +",\n")
         # 4: A flag that is no longer used, can be ignored
         f.write("0\n")

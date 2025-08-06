@@ -9,13 +9,13 @@ parameters:
   sampler_split:
     values: [0.2]
   lr:
-    values: [0.1]
+    values: [0.01]
   momentum:
     values: [0.9]
   weight_decay:
     values: [5e-4]
   n_epochs:
-    values: [120]
+    values: [40]
   batch_size:
     values: [256]
   dataset:
@@ -33,9 +33,9 @@ parameters:
 
 # ============ GUARANTEE PARAMS ===========
   epsilon:
-    values: [0.01]
+    values: [0.05]
   kappa_max_quantile:
-    values: [0.99]
+    values: [0.95]
   delta:
     values: [0.005]
   PGD_EPS:
@@ -43,14 +43,13 @@ parameters:
   PGD_ALPHA:
     values: [0.001953125] # 0.5/256
   PGD_STEPS:
-    values: [512]
+    values: [500]
+  SAMPLING_SEED:
+    values: [10] #, 20, 30, 40, 50]
   SAMPLING_GN_STD:
     values: [0.03125] # 8/256
-  SAMPLING_SEED:
-    values: [10, 20, 30, 40, 50]
+
   MARABOU_MAX_RADIUS:
-    values: [0.25]
+    values: [0.2]
   MARABOU_STEPS:
-    values: [4]
-
-
+    values: [6]
