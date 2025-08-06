@@ -1,0 +1,55 @@
+method: grid
+parameters:
+  robust_beta:
+    values: [6]
+  optimization_function:
+    values: [Standard, TRADES]
+  seed:
+    values: [0,1,2,3,4]
+  sampler_split:
+    values: [0.2]
+  lr:
+    values: [0.01]
+  momentum:
+    values: [0.9]
+  weight_decay:
+    values: [5e-4]
+  n_epochs:
+    values: [40]
+  batch_size:
+    values: [256]
+  dataset:
+    values: ["mnist"]
+  EPS:
+    values: [0.6] #8/255
+  ALPHA:
+    values: [0.025]
+  STEPS:
+    values: [50]
+  STD:
+    values: [1]
+  layer_sizes:
+    values: [[50, 10]]
+
+# ============ GUARANTEE PARAMS ===========
+  epsilon:
+    values: [0.05]
+  kappa_max_quantile:
+    values: [0.95]
+  delta:
+    values: [0.005]
+  PGD_EPS:
+    values: [1]
+  PGD_ALPHA:
+    values: [0.001953125] # 0.5/256
+  PGD_STEPS:
+    values: [500]
+  SAMPLING_SEED:
+    values: [10] #, 20, 30, 40, 50]
+  SAMPLING_GN_STD:
+    values: [0.03125] # 8/256
+
+  MARABOU_MAX_RADIUS:
+    values: [0.2]
+  MARABOU_STEPS:
+    values: [6]

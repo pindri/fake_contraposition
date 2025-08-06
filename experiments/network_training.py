@@ -4,6 +4,7 @@ import time
 
 # import onnx
 import torch
+from pag_robustness.readONNXModels.bigConvArchitecture import ConvBigMNIST
 # from onnx2pytorch import ConvertModel
 
 from pag_robustness.readONNXModels.bigConvONNX import BigConvOnnx, load_weights_from_onnx_state_dict
@@ -37,18 +38,8 @@ def get_base_model(dim_input: int, dim_output: int, network_type: str) -> RobMod
             normal_model = torch.hub.load('chenyaofo/pytorch-cifar-models', 'cifar10_resnet20', pretrained=False)
         case "vgg11_bn":
             normal_model = torch.hub.load('chenyaofo/pytorch-cifar-models', 'cifar10_vgg11_bn', pretrained=False)
-        case "convSmall":
-            onnx_model_path = "/home/pblohm/pag/fake_contraposition/rob/onnx_models/mnist_convSmallRELU__Point.onnx"
-            # onnx_model = onnx.load(onnx_model_path)
-            normal_model = load_weights_from_onnx_state_dict()
-                # ConvertModel(onnx_model,experimental=True).state_dict(),
-                # BigConvOnnx())  # TODO: we need a different model here
         case "convBig":
-            onnx_model_path = "/home/pblohm/pag/fake_contraposition/rob/onnx_models/mnist_convBigRELU__DiffAI.onnx"
-            # onnx_model = onnx.load(onnx_model_path)
-            normal_model = load_weights_from_onnx_state_dict(
-            #     ConvertModel(onnx_model,experimental=True).state_dict(),
-                BigConvOnnx())
+            normal_model = ConvBigMNIST()
         case _:
             raise "unknown network type"
     if torch.cuda.is_available():
@@ -73,7 +64,7 @@ def setup_and_get_data(dataset, network_type) -> (str, RobModel, dict):
     torch.backends.cudnn.benchmark = not False  # Disable automatic optimizations that could introduce randomness
 
     dim_input, dim_output, train_loader, val_loader, test_loader = (
-        get_kfold_loaders(dataset, split_index=wandb.config.seed, batch_size=wandb.config.batch_size, flatten=dataset !="cifar10"))
+        get_kfold_loaders(dataset, split_index=wandb.config.seed, batch_size=wandb.config.batch_size, flatten= (network_type != "convBig") and (dataset != "cifar10")))
     robust_model = get_base_model(dim_input, dim_output, network_type)
     return name, robust_model, {"train": train_loader, "val": val_loader, "test": test_loader}
 
@@ -129,7 +120,7 @@ def train_network(dataset: str, network_type: str):
 
 def attack_model(name: str, model: RobModel, data: Tensor, method: str, labels: Tensor = None):
     start_time = time.time()
-    batch_size = 16186//2
+    batch_size = 16186//4
     num_batches = data.size(0) // batch_size + int(data.size(0) % batch_size != 0)
     preds = []
     data.requires_grad = False
@@ -165,10 +156,11 @@ def attack_model(name: str, model: RobModel, data: Tensor, method: str, labels: 
             steps = torch.zeros_like(distances)
             classes = get_classes(preds)
         case "lirpa":
-            distances = quantitative_lirpa(model, points=data,
-                                             step_num=wandb.config.MARABOU_STEPS,
-                                             max_radius=wandb.config.MARABOU_MAX_RADIUS,
-                                             classes = get_classes(preds))
+            with torch.no_grad():
+                distances = quantitative_lirpa(model, points=data.cuda(),
+                                                 step_num=wandb.config.MARABOU_STEPS,
+                                                 max_radius=wandb.config.MARABOU_MAX_RADIUS,
+                                                 classes = get_classes(preds))
             steps = torch.zeros_like(distances)
             classes = get_classes(preds)
         case _:
@@ -198,8 +190,8 @@ def sampling(dataset: str, network_type: str, method: str):
     name, robust_model, loaders = setup_and_get_data(dataset, network_type)
 
     robust_model.load_state_dict(
-        torch.load(f'../rob/{name}/epoch_iter/00120_00000.pth', weights_only=False, map_location="cuda")["rmodel"])
-    robust_model = CCifarNormalizedNetwork(robust_model).cuda()
+        torch.load(f'../rob/{name}/last.pth', weights_only=False, map_location="cuda")["rmodel"])
+    robust_model = (robust_model).cuda()
 
     np.random.seed(wandb.config.SAMPLING_SEED)
     torch.random.manual_seed(wandb.config.SAMPLING_SEED)
@@ -231,8 +223,8 @@ def testing(dataset: str, network_type: str, method: str):
     name, robust_model, loaders = setup_and_get_data(dataset, network_type)
 
     robust_model.load_state_dict(
-        torch.load(f'../rob/{name}/epoch_iter/00120_00000.pth', weights_only=False, map_location="cuda")["rmodel"])
-    robust_model = CCifarNormalizedNetwork(robust_model).cuda()
+        torch.load(f'../rob/{name}/last.pth', weights_only=False, map_location="cuda")["rmodel"])
+    robust_model = (robust_model).cuda()
 
     for param in robust_model.parameters():
         param.requires_grad = False
