@@ -1,17 +1,14 @@
 method: grid
 parameters:
   robust_beta:
-    values: [2]
+    values: [6]
   optimization_function:
-    values: [AT, Standard]
+    values: [Standard, TRADES]
   seed:
-    values: [666, 69, 42]
-  temp_scaling_regularization:
-    values: [0.2]
-  scaler_split:
-    values: [0.04]
+    values: [0,1,2,3,4]
+
   sampler_split:
-    values: [0.16]
+    values: [0.2]
   lr:
     values: [0.1]
   momentum:
@@ -47,13 +44,15 @@ parameters:
   PGD_ALPHA:
     values: [0.001953125] # 0.5/256
   PGD_STEPS:
-    values: [512]
+    values: [500]
+  SAMPLING_SEED:
+    values: [10, 20, 30, 40, 50]
   SAMPLING_GN_STD:
     values: [0.03125] # 8/256
 
   MARABOU_MAX_RADIUS:
-    values: [0.5]
+    values: [0.2]
   MARABOU_STEPS:
-    values: [4]
+    values: [6]
 
 

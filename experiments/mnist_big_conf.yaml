@@ -3,19 +3,20 @@ parameters:
   robust_beta:
     values: [6]
   optimization_function:
-    values: [Standard, TRADES]
+#    values: [Standard, TRADES]
+    values: [TRADES]
   seed:
     values: [0,1,2,3,4]
   sampler_split:
     values: [0.2]
   lr:
-    values: [0.1]
+    values: [0.01]
   momentum:
     values: [0.9]
   weight_decay:
     values: [5e-4]
   n_epochs:
-    values: [120]
+    values: [40]
   batch_size:
     values: [256]
   dataset:
